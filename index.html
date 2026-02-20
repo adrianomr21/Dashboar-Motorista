@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard PWA Motorista</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="icon" href="https://img.icons8.com/color/192/steering-wheel.png">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <header>
+        <div class="header-content">
+            <h1>🚀 DriverDash</h1>
+            <button id="installBtn" style="display: none;">Instalar App</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="filters" class="section">
+            <div class="card filter-card">
+                <h3>📅 Filtro por Período</h3>
+                <div class="filter-controls">
+                    <div class="input-group">
+                        <label for="startDate">Início:</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="input-group">
+                        <label for="endDate">Fim:</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button id="updateBtn">Atualizar</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="status-checks" class="section">
+            <div class="status-grid">
+                <div class="status-item" id="statusPrestacao">Prestação: <span class="badge">---</span></div>
+                <div class="status-item" id="statusIPVA">IPVA: <span class="badge">---</span></div>
+                <div class="status-item" id="statusManutencao">Manutenção: <span class="badge">---</span></div>
+            </div>
+        </section>
+
+        <section id="indicators" class="indicator-grid section">
+            <div class="card indicator">
+                <p>💰 Arrecadado</p>
+                <h2 id="totalArrecadado">R$ 0,00</h2>
+            </div>
+            <div class="card indicator">
+                <p>⛽ Combustível</p>
+                <h2 id="totalCombustivel">R$ 0,00</h2>
+            </div>
+            <div class="card indicator">
+                <p>🚗 KM Rodados</p>
+                <h2 id="totalKM">0 km</h2>
+            </div>
+            <div class="card indicator">
+                <p>💵 Restante</p>
+                <h2 id="totalRestante">R$ 0,00</h2>
+            </div>
+            <div class="card indicator">
+                <p>📊 Custo Médio / KM</p>
+                <h2 id="custoMedioKM">R$ 0,00</h2>
+            </div>
+            <div class="card indicator">
+                <p>📈 Lucro Real</p>
+                <h2 id="lucroReal">R$ 0,00</h2>
+            </div>
+            <div class="card indicator">
+                <p>⏱ Horas Totais</p>
+                <h2 id="totalHoras">0h</h2>
+            </div>
+            <div class="card indicator">
+                <p>📅 Dias Trabalhados</p>
+                <h2 id="totalDias">0</h2>
+            </div>
+        </section>
+
+        <section id="charts" class="section">
+            <div class="chart-container card">
+                <h3>Ganhos por Dia</h3>
+                <canvas id="ganhosChart"></canvas>
+            </div>
+            <div class="chart-container card">
+                <h3>Combustível vs Lucro</h3>
+                <canvas id="combustivelLucroChart"></canvas>
+            </div>
+            <div class="chart-container card">
+                <h3>KM por Dia</h3>
+                <canvas id="kmChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <div id="loader" class="loader-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
