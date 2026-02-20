@@ -15,92 +15,190 @@
     <header>
         <div class="header-content">
             <h1>🚀 DriverDash</h1>
-            <button id="installBtn" style="display: none;">Instalar App</button>
+            <div class="nav-tabs">
+                <button id="tab-cadastro" class="tab-btn active">Cadastro</button>
+                <button id="tab-dashboard" class="tab-btn">Dashboard</button>
+            </div>
+            <button id="installBtn" style="display: none;">Instalar</button>
         </div>
     </header>
 
     <main>
-        <section id="filters" class="section">
-            <div class="card filter-card">
-                <h3>📅 Filtro por Período</h3>
-                <div class="filter-controls">
+        <!-- SEÇÃO DE CADASTRO -->
+        <section id="section-cadastro" class="section">
+            <div class="card">
+                <h3>📝 Novo Registro</h3>
+                <form id="form-cadastro" class="grid-form">
                     <div class="input-group">
-                        <label for="startDate">Início:</label>
-                        <input type="date" id="startDate">
+                        <label>Data</label>
+                        <input type="date" id="field-data" required>
                     </div>
                     <div class="input-group">
-                        <label for="endDate">Fim:</label>
-                        <input type="date" id="endDate">
+                        <label>KM Inicial</label>
+                        <input type="number" id="field-km-inicial" step="0.1" placeholder="0.0">
                     </div>
-                    <button id="updateBtn">Atualizar</button>
+                    <div class="input-group">
+                        <label>KM Final</label>
+                        <input type="number" id="field-km-final" step="0.1" placeholder="0.0">
+                    </div>
+                    <div class="input-group">
+                        <label>Dinheiro (R$)</label>
+                        <input type="number" id="field-dinheiro" step="0.01" placeholder="0,00">
+                    </div>
+                    <div class="input-group">
+                        <label>Horas Trabalhadas</label>
+                        <input type="number" id="field-horas" step="0.1" placeholder="0.0">
+                    </div>
+                    <div class="input-group">
+                        <label>Dia da Semana</label>
+                        <select id="field-dia-semana">
+                            <option value="Segunda">Segunda</option>
+                            <option value="Terça">Terça</option>
+                            <option value="Quarta">Quarta</option>
+                            <option value="Quinta">Quinta</option>
+                            <option value="Sexta">Sexta</option>
+                            <option value="Sábado">Sábado</option>
+                            <option value="Domingo">Domingo</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Turno</label>
+                        <select id="field-turno">
+                            <option value="Manhã">Manhã</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noite">Noite</option>
+                            <option value="Madrugada">Madrugada</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Movimentação</label>
+                        <select id="field-movimentacao">
+                            <option value="Baixa">Baixa</option>
+                            <option value="Média">Média</option>
+                            <option value="Alta">Alta</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Perfil Passageiro</label>
+                        <input type="text" id="field-perfil" placeholder="Ex: Executivo, Turista...">
+                    </div>
+                    <div class="input-group">
+                        <label>App</label>
+                        <select id="field-app">
+                            <option value="Uber">Uber</option>
+                            <option value="99">99</option>
+                            <option value="Indriver">Indriver</option>
+                            <option value="Particular">Particular</option>
+                            <option value="Misto">Misto</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Trânsito</label>
+                        <select id="field-transito">
+                            <option value="Livre">Livre</option>
+                            <option value="Moderado">Moderado</option>
+                            <option value="Intenso">Intenso</option>
+                            <option value="Parado">Parado</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Preço Combustível (R$)</label>
+                        <input type="number" id="field-combustivel" step="0.001" placeholder="0,000">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Observações</label>
+                        <textarea id="field-obs" rows="2"></textarea>
+                    </div>
+                    <button type="submit" id="saveBtn" class="primary-btn">Salvar no Firebase</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- SEÇÃO DE DASHBOARD -->
+        <section id="section-dashboard" class="section" style="display: none;">
+            <section id="filters">
+                <div class="card filter-card">
+                    <h3>📅 Filtro por Período</h3>
+                    <div class="filter-controls">
+                        <div class="input-group">
+                            <label for="startDate">Início:</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="endDate">Fim:</label>
+                            <input type="date" id="endDate">
+                        </div>
+                        <button id="updateBtn">Atualizar</button>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="status-checks" class="section">
-            <div class="status-grid">
-                <div class="status-item" id="statusPrestacao">Prestação: <span class="badge">---</span></div>
-                <div class="status-item" id="statusIPVA">IPVA: <span class="badge">---</span></div>
-                <div class="status-item" id="statusManutencao">Manutenção: <span class="badge">---</span></div>
-            </div>
-        </section>
+            <section id="status-checks">
+                <div class="status-grid">
+                    <div class="status-item" id="statusPrestacao">Prestação: <span class="badge">---</span></div>
+                    <div class="status-item" id="statusIPVA">IPVA: <span class="badge">---</span></div>
+                    <div class="status-item" id="statusManutencao">Manutenção: <span class="badge">---</span></div>
+                </div>
+            </section>
 
-        <section id="indicators" class="indicator-grid section">
-            <div class="card indicator">
-                <p>💰 Arrecadado</p>
-                <h2 id="totalArrecadado">R$ 0,00</h2>
-            </div>
-            <div class="card indicator">
-                <p>⛽ Combustível</p>
-                <h2 id="totalCombustivel">R$ 0,00</h2>
-            </div>
-            <div class="card indicator">
-                <p>🚗 KM Rodados</p>
-                <h2 id="totalKM">0 km</h2>
-            </div>
-            <div class="card indicator">
-                <p>💵 Restante</p>
-                <h2 id="totalRestante">R$ 0,00</h2>
-            </div>
-            <div class="card indicator">
-                <p>📊 Custo Médio / KM</p>
-                <h2 id="custoMedioKM">R$ 0,00</h2>
-            </div>
-            <div class="card indicator">
-                <p>📈 Lucro Real</p>
-                <h2 id="lucroReal">R$ 0,00</h2>
-            </div>
-            <div class="card indicator">
-                <p>⏱ Horas Totais</p>
-                <h2 id="totalHoras">0h</h2>
-            </div>
-            <div class="card indicator">
-                <p>📅 Dias Trabalhados</p>
-                <h2 id="totalDias">0</h2>
-            </div>
-        </section>
+            <section id="indicators" class="indicator-grid">
+                <div class="card indicator">
+                    <p>💰 Arrecadado</p>
+                    <h2 id="totalArrecadado">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>⛽ Gasto Estimado</p>
+                    <h2 id="totalCombustivel">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>🚗 KM Rodados</p>
+                    <h2 id="totalKM">0 km</h2>
+                </div>
+                <div class="card indicator">
+                    <p>💵 Restante</p>
+                    <h2 id="totalRestante">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>📊 Média R$ / KM</p>
+                    <h2 id="custoMedioKM">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>📈 Lucro Estimado</p>
+                    <h2 id="lucroReal">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>⏱ Horas Totais</p>
+                    <h2 id="totalHoras">0h</h2>
+                </div>
+                <div class="card indicator">
+                    <p>📅 Dias Trabalhados</p>
+                    <h2 id="totalDias">0</h2>
+                </div>
+            </section>
 
-        <section id="charts" class="section">
-            <div class="chart-container card">
-                <h3>Ganhos por Dia</h3>
-                <canvas id="ganhosChart"></canvas>
-            </div>
-            <div class="chart-container card">
-                <h3>Combustível vs Lucro</h3>
-                <canvas id="combustivelLucroChart"></canvas>
-            </div>
-            <div class="chart-container card">
-                <h3>KM por Dia</h3>
-                <canvas id="kmChart"></canvas>
-            </div>
+            <section id="charts">
+                <div class="chart-container card">
+                    <h3>Ganhos por Dia</h3>
+                    <canvas id="ganhosChart"></canvas>
+                </div>
+                <div class="chart-container card">
+                    <h3>Combustível vs Lucro</h3>
+                    <canvas id="combustivelLucroChart"></canvas>
+                </div>
+                <div class="chart-container card">
+                    <h3>KM por Dia</h3>
+                    <canvas id="kmChart"></canvas>
+                </div>
+            </section>
         </section>
     </main>
 
     <div id="loader" class="loader-overlay" style="display: none;">
         <div class="spinner"></div>
-        <p>Carregando dados...</p>
+        <p id="loader-text">Carregando dados...</p>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
