@@ -207,10 +207,12 @@ input[type="date"] {
   justify-content: space-around;
   flex-wrap: wrap;
   gap: 10px;
+  margin: 15px 0px;
   background-color: var(--card-bg);
   padding: 15px;
   border-radius: 12px;
   box-shadow: var(--shadow);
+  
 }
 
 .status-item {
@@ -274,11 +276,20 @@ canvas {
     }
     
     .indicator-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, 2fr);
     }
     
     .filter-controls {
         flex-direction: column;
         align-items: stretch;
+    }
+    .status-grid {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      margin: 15px 0px;
+      gap: 10px;   
+      flex-direction: column;
+      
     }
 }
