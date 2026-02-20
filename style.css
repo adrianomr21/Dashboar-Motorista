@@ -130,7 +130,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: 12px;
   padding: 20px;
   box-shadow: var(--shadow);
-  margin-bottom: 15px;
+  margin: 15px 0px;
 }
 
 .filter-card h3 {
@@ -184,7 +184,7 @@ input[type="date"] {
 .indicator-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 15px;
+  gap: 0px 15px;
 }
 
 .indicator {
