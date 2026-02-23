@@ -70,11 +70,16 @@ function setupAuthListener() {
 
 function showApp(isLoggedIn) {
     mainHeader.style.display = isLoggedIn ? 'block' : 'none';
-    sections.login.style.display = isLoggedIn ? 'none' : 'block';
-    sections.signup.style.display = 'none'; // Sempre esconde signup ao mudar estado de auth
     
+    // Esconde absolutamente tudo primeiro
+    Object.values(sections).forEach(section => {
+        if (section) section.style.display = 'none';
+    });
+
     if (isLoggedIn) {
         switchTab('cadastro');
+    } else {
+        sections.login.style.display = 'block';
     }
 }
 
