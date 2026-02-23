@@ -1,7 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, getDocs, orderBy, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, getDocs, orderBy, where, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    DEFAULT_CONFIG, 
+    formatCurrency, getDayOfWeek, calculateKmTotal, 
+    calculateFuelCost, calculateDashboardMetrics 
+} from "./utils.js";
 
 // Configuração do Firebase
+// ... (mantenha o resto das variáveis iguais)
 const firebaseConfig = {
   apiKey: "AIzaSyAANN3J8E5Ed9q9dldnPyzGUoo7G3WGCzE",
   authDomain: "motorista-a0806.firebaseapp.com",
@@ -14,42 +21,235 @@ const firebaseConfig = {
 // Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// Configurações de Custos Fixos (Mantenha conforme sua necessidade)
-const PRESTACAO = 1200;
-const IPVA = 300;
-const MANUTENCAO = 500;
-const CUSTO_FIXO_TOTAL = PRESTACAO + IPVA + MANUTENCAO;
+const auth = getAuth(app);
 
 let charts = {};
+let currentUser = null;
+let userConfig = DEFAULT_CONFIG;
 const CACHE_KEY = 'driver_dash_form_cache';
 
 // Elementos da UI
 const sections = {
+    login: document.getElementById('section-login'),
+    signup: document.getElementById('section-signup'),
     cadastro: document.getElementById('section-cadastro'),
-    dashboard: document.getElementById('section-dashboard')
+    dashboard: document.getElementById('section-dashboard'),
+    config: document.getElementById('section-config')
 };
 
 const tabs = {
     cadastro: document.getElementById('tab-cadastro'),
-    dashboard: document.getElementById('tab-dashboard')
+    dashboard: document.getElementById('tab-dashboard'),
+    config: document.getElementById('tab-config')
 };
+
+const mainHeader = document.getElementById('main-header');
 
 // Inicialização do App
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
+    setupAuthListener();
     registerServiceWorker();
     setupPWAInstall();
+    setupAuthToggles();
 });
+
+function setupAuthListener() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            showApp(true);
+            initApp();
+        } else {
+            currentUser = null;
+            showApp(false);
+            setupLoginForm();
+            setupSignupForm();
+        }
+    });
+}
+
+function showApp(isLoggedIn) {
+    mainHeader.style.display = isLoggedIn ? 'block' : 'none';
+    sections.login.style.display = isLoggedIn ? 'none' : 'block';
+    sections.signup.style.display = 'none'; // Sempre esconde signup ao mudar estado de auth
+    
+    if (isLoggedIn) {
+        switchTab('cadastro');
+    }
+}
+
+function setupAuthToggles() {
+    document.getElementById('link-to-signup').onclick = (e) => {
+        e.preventDefault();
+        sections.login.style.display = 'none';
+        sections.signup.style.display = 'block';
+    };
+
+    document.getElementById('link-to-login').onclick = (e) => {
+        e.preventDefault();
+        sections.signup.style.display = 'none';
+        sections.login.style.display = 'block';
+    };
+}
+
+function setupLoginForm() {
+    const loginForm = document.getElementById('form-login');
+    const errorEl = document.getElementById('login-error');
+
+    loginForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        showLoader(true, 'Autenticando...');
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            errorEl.style.display = 'none';
+        } catch (error) {
+            console.error(error);
+            errorEl.textContent = 'Erro ao entrar. Verifique seu e-mail e senha.';
+            errorEl.style.display = 'block';
+        } finally {
+            showLoader(false);
+        }
+    };
+}
+
+function setupSignupForm() {
+    const signupForm = document.getElementById('form-signup');
+    const errorEl = document.getElementById('signup-error');
+
+    signupForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+        if (password !== confirmPassword) {
+            errorEl.textContent = 'As senhas não coincidem.';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        showLoader(true, 'Criando conta...');
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            errorEl.style.display = 'none';
+            alert('Conta criada com sucesso!');
+        } catch (error) {
+            console.error(error);
+            let message = 'Erro ao criar conta.';
+            if (error.code === 'auth/email-already-in-use') message = 'Este e-mail já está em uso.';
+            if (error.code === 'auth/weak-password') message = 'A senha deve ter pelo menos 6 caracteres.';
+            
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        } finally {
+            showLoader(false);
+        }
+    };
+}
 
 function initApp() {
     setupNavigation();
     setupForm();
     setupDateFilters();
     loadFormCache();
+    loadUserConfig();
     
-    document.getElementById('updateBtn').addEventListener('click', () => loadDashboardData());
-    document.getElementById('field-data').addEventListener('change', updateDayOfWeek);
+    document.getElementById('updateBtn').onclick = () => loadDashboardData();
+    document.getElementById('logoutBtn').onclick = () => handleLogout();
+    document.getElementById('field-data').onchange = updateDayOfWeek;
+    document.getElementById('form-config').onsubmit = (e) => saveUserConfig(e);
+
+    // Lógica de Importação
+    const btnImport = document.getElementById('btnShowImport');
+    const fileInput = document.getElementById('importFile');
+
+    btnImport.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            window.importFromMD(event.target.result);
+            fileInput.value = ''; // Reseta o input
+        };
+        reader.readAsText(file);
+    };
+}
+
+async function loadUserConfig() {
+    if (!currentUser) return;
+    try {
+        const configDoc = await getDoc(doc(db, "configs", currentUser.uid));
+        if (configDoc.exists()) {
+            userConfig = { ...DEFAULT_CONFIG, ...configDoc.data() };
+        } else {
+            userConfig = DEFAULT_CONFIG;
+        }
+        fillConfigForm();
+    } catch (e) {
+        console.error("Erro ao carregar configs:", e);
+    }
+}
+
+function fillConfigForm() {
+    document.getElementById('cfg-media-km-dia').value = userConfig.mediaKmDia;
+    document.getElementById('cfg-media-consumo').value = userConfig.consumoMedio;
+    document.getElementById('cfg-dias-mes').value = userConfig.diasTrabalhadosMes;
+    document.getElementById('cfg-lucro-alvo').value = userConfig.lucroAlvo;
+    document.getElementById('cfg-fixo-parcela').value = userConfig.fixoParcela;
+    document.getElementById('cfg-fixo-ipva').value = userConfig.fixoIpva;
+    document.getElementById('cfg-fixo-seguro').value = userConfig.fixoSeguro;
+    document.getElementById('cfg-fixo-manutencao').value = userConfig.fixoManutencao;
+    document.getElementById('cfg-km-revisao').value = userConfig.kmRevisao;
+    document.getElementById('cfg-custo-revisao').value = userConfig.custoRevisao;
+    document.getElementById('cfg-km-pneu').value = userConfig.kmPneu;
+    document.getElementById('cfg-custo-pneu').value = userConfig.custoPneu;
+    document.getElementById('cfg-km-oleo').value = userConfig.kmOleo;
+    document.getElementById('cfg-custo-oleo').value = userConfig.custoOleo;
+}
+
+async function saveUserConfig(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando configurações...');
+    
+    const newConfig = {
+        mediaKmDia: parseFloat(document.getElementById('cfg-media-km-dia').value) || 0,
+        consumoMedio: parseFloat(document.getElementById('cfg-media-consumo').value) || 0,
+        diasTrabalhadosMes: parseFloat(document.getElementById('cfg-dias-mes').value) || 0,
+        lucroAlvo: parseFloat(document.getElementById('cfg-lucro-alvo').value) || 0,
+        fixoParcela: parseFloat(document.getElementById('cfg-fixo-parcela').value) || 0,
+        fixoIpva: parseFloat(document.getElementById('cfg-fixo-ipva').value) || 0,
+        fixoSeguro: parseFloat(document.getElementById('cfg-fixo-seguro').value) || 0,
+        fixoManutencao: parseFloat(document.getElementById('cfg-fixo-manutencao').value) || 0,
+        kmRevisao: parseFloat(document.getElementById('cfg-km-revisao').value) || 0,
+        custoRevisao: parseFloat(document.getElementById('cfg-custo-revisao').value) || 0,
+        kmPneu: parseFloat(document.getElementById('cfg-km-pneu').value) || 0,
+        custoPneu: parseFloat(document.getElementById('cfg-custo-pneu').value) || 0,
+        kmOleo: parseFloat(document.getElementById('cfg-km-oleo').value) || 0,
+        custoOleo: parseFloat(document.getElementById('cfg-custo-oleo').value) || 0,
+        updatedAt: new Date()
+    };
+
+    try {
+        await setDoc(doc(db, "configs", currentUser.uid), newConfig);
+        userConfig = newConfig;
+        alert('✅ Configurações salvas!');
+    } catch (e) {
+        console.error("Erro ao salvar config:", e);
+        alert('❌ Erro ao salvar configurações.');
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function handleLogout() {
+    if (confirm('Deseja realmente sair?')) {
+        await signOut(auth);
+    }
 }
 
 // Navegação entre Abas
@@ -59,12 +259,19 @@ function setupNavigation() {
         switchTab('dashboard');
         loadDashboardData();
     });
+    tabs.config.addEventListener('click', () => {
+        switchTab('config');
+    });
 }
 
 function switchTab(target) {
     Object.keys(sections).forEach(key => {
-        sections[key].style.display = key === target ? 'block' : 'none';
-        tabs[key].classList.toggle('active', key === target);
+        if (sections[key]) {
+            sections[key].style.display = key === target ? 'block' : 'none';
+        }
+        if (tabs[key]) {
+            tabs[key].classList.toggle('active', key === target);
+        }
     });
 }
 
@@ -93,11 +300,7 @@ function setupForm() {
 
 function updateDayOfWeek() {
     const dateVal = document.getElementById('field-data').value;
-    if (!dateVal) return;
-    
-    const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const date = new Date(dateVal + 'T00:00:00');
-    document.getElementById('field-dia-semana').value = days[date.getDay()];
+    document.getElementById('field-dia-semana').value = getDayOfWeek(dateVal);
 }
 
 function saveFormCache() {
@@ -124,6 +327,7 @@ function loadFormCache() {
 async function saveToFirebase() {
     showLoader(true, 'Salvando dados...');
     try {
+        const id = document.getElementById('field-id').value;
         const kmInicial = parseFloat(document.getElementById('field-km-inicial').value) || 0;
         const kmFinal = parseFloat(document.getElementById('field-km-final').value) || 0;
         
@@ -131,7 +335,7 @@ async function saveToFirebase() {
             data: document.getElementById('field-data').value,
             km_inicial: kmInicial,
             km_final: kmFinal,
-            km_total: kmFinal - kmInicial,
+            km_total: calculateKmTotal(kmInicial, kmFinal),
             dinheiro: parseFloat(document.getElementById('field-dinheiro').value) || 0,
             horas: parseFloat(document.getElementById('field-horas').value) || 0,
             dia_semana: document.getElementById('field-dia-semana').value,
@@ -142,18 +346,31 @@ async function saveToFirebase() {
             transito: document.getElementById('field-transito').value,
             preco_combustivel: parseFloat(document.getElementById('field-combustivel').value) || 0,
             observacoes: document.getElementById('field-obs').value,
+            uid: currentUser.uid,
             timestamp: new Date()
         };
 
-        await addDoc(collection(db, "registros"), dataDoc);
-        alert('✅ Dados salvos com sucesso!');
-        // Limpa apenas KM inicial (seta como o final anterior) e dinheiro
+        if (id) {
+            await updateDoc(doc(db, "registros", id), dataDoc);
+            alert('✅ Registro atualizado!');
+        } else {
+            await addDoc(collection(db, "registros"), dataDoc);
+            alert('✅ Dados salvos!');
+        }
+
+        // Limpa formulário
+        document.getElementById('form-cadastro').reset();
+        document.getElementById('field-id').value = '';
+        
+        // Setup para próxima entrada
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('field-data').value = today;
         document.getElementById('field-km-inicial').value = dataDoc.km_final;
-        document.getElementById('field-dinheiro').value = '';
+        updateDayOfWeek();
         saveFormCache();
     } catch (e) {
         console.error("Erro ao salvar: ", e);
-        alert('❌ Erro ao salvar dados. Verifique o console.');
+        alert('❌ Erro ao salvar dados.');
     } finally {
         showLoader(false);
     }
@@ -184,7 +401,9 @@ async function loadDashboardData() {
         const querySnapshot = await getDocs(q);
         const data = [];
         querySnapshot.forEach((doc) => {
-            data.push(doc.data());
+            const item = doc.data();
+            item.id = doc.id;
+            data.push(item);
         });
 
         updateDashboard(data);
@@ -197,37 +416,115 @@ async function loadDashboardData() {
 }
 
 function updateDashboard(data) {
-    // Processamento dos dados para as métricas
-    const totals = data.reduce((acc, curr) => {
-        acc.ganhos += curr.dinheiro;
-        // Cálculo estimado de combustível (exemplo: consumo médio de 10km/l se não houver campo específico)
-        // Aqui usamos o preco_combustivel informado no dia * litros (baseado em KM total)
-        // Vamos assumir um consumo médio de 10km/L para o cálculo do dashboard se não tivermos gasto direto
-        const litrosEstimados = curr.km_total / 10; 
-        acc.combustivel += litrosEstimados * curr.preco_combustivel;
-        
-        acc.km += curr.km_total;
-        acc.horas += curr.horas;
-        acc.dias.add(curr.data);
-        return acc;
-    }, { ganhos: 0, combustivel: 0, km: 0, horas: 0, dias: new Set() });
-
-    const lucroReal = totals.ganhos - totals.combustivel;
-    const restante = lucroReal - CUSTO_FIXO_TOTAL;
-    const mediaRK = totals.km > 0 ? totals.ganhos / totals.km : 0;
+    const metrics = calculateDashboardMetrics(data, userConfig);
 
     // Atualizar UI
-    document.getElementById('totalArrecadado').textContent = formatCurrency(totals.ganhos);
-    document.getElementById('totalCombustivel').textContent = formatCurrency(totals.combustivel);
-    document.getElementById('totalKM').textContent = `${totals.km.toFixed(1)} km`;
-    document.getElementById('totalRestante').textContent = formatCurrency(restante);
-    document.getElementById('custoMedioKM').textContent = formatCurrency(mediaRK);
-    document.getElementById('lucroReal').textContent = formatCurrency(lucroReal);
-    document.getElementById('totalHoras').textContent = `${totals.horas.toFixed(1)}h`;
-    document.getElementById('totalDias').textContent = totals.dias.size;
+    document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
+    document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
+    document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
+    document.getElementById('totalRestante').textContent = formatCurrency(metrics.restante);
+    document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
+    document.getElementById('lucroReal').textContent = formatCurrency(metrics.lucroReal);
+    document.getElementById('totalHoras').textContent = `${metrics.horas.toFixed(1)}h`;
+    document.getElementById('totalDias').textContent = metrics.totalDias;
 
-    updateStatusChecks(lucroReal);
+    updateStatusChecks(metrics.lucroReal);
     renderCharts(data);
+    renderHistoryTable(data);
+}
+
+function renderHistoryTable(data) {
+    const tbody = document.querySelector('#table-history tbody');
+    tbody.innerHTML = '';
+
+    // Ordena por data decrescente para o histórico
+    const sortedData = [...data].sort((a, b) => b.data.localeCompare(a.data));
+
+    sortedData.forEach(item => {
+        const tr = document.createElement('tr');
+        
+        // Calcula lucro da linha
+        const litros = item.km_total / (userConfig.consumoMedio || 10);
+        const custoComb = litros * item.preco_combustivel;
+        const variaveis = (item.km_total * (userConfig.custoRevisao/userConfig.kmRevisao + userConfig.custoPneu/userConfig.kmPneu + userConfig.custoOleo/userConfig.kmOleo)) || 0;
+        const lucroItem = item.dinheiro - custoComb - variaveis;
+
+        tr.innerHTML = `
+            <td>${item.data.split('-').reverse().join('/')}</td>
+            <td>${item.km_total.toFixed(1)}</td>
+            <td>${formatCurrency(item.dinheiro)}</td>
+            <td style="color: ${lucroItem >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(lucroItem)}</td>
+            <td><button class="btn-edit" data-id="${item.id}">Editar</button></td>
+        `;
+
+        tr.querySelector('.btn-edit').onclick = () => editRecord(item);
+        tbody.appendChild(tr);
+    });
+}
+
+function editRecord(item) {
+    switchTab('cadastro');
+    document.getElementById('field-id').value = item.id;
+    document.getElementById('field-data').value = item.data;
+    document.getElementById('field-km-inicial').value = item.km_inicial;
+    document.getElementById('field-km-final').value = item.km_final;
+    document.getElementById('field-dinheiro').value = item.dinheiro;
+    document.getElementById('field-horas').value = item.horas;
+    document.getElementById('field-dia-semana').value = item.dia_semana;
+    document.getElementById('field-turno').value = item.turno;
+    document.getElementById('field-movimentacao').value = item.movimentacao;
+    document.getElementById('field-perfil').value = item.perfil_passageiro;
+    document.getElementById('field-app').value = item.app;
+    document.getElementById('field-transito').value = item.transito;
+    document.getElementById('field-combustivel').value = item.preco_combustivel;
+    document.getElementById('field-obs').value = item.observacoes;
+    
+    document.getElementById('saveBtn').textContent = 'Atualizar Registro';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Função utilitária para importação (pode ser chamada no console ou via botão temporário)
+window.importFromMD = async function(content) {
+    if (!currentUser) return alert('Faça login primeiro');
+    const lines = content.trim().split('\n');
+    showLoader(true, 'Importando registros...');
+    
+    let count = 0;
+    for (const line of lines) {
+        if (line.includes('Carimbo de data/hora') || !line.trim()) continue;
+        
+        const cols = line.split('\t');
+        if (cols.length < 10) continue;
+
+        // Parse Data: 20/01/2026 -> 2026-01-20
+        const dateParts = cols[0].split(' ')[0].split('/');
+        const isoDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
+        const dataDoc = {
+            data: isoDate,
+            km_inicial: parseFloat(cols[1]),
+            km_final: parseFloat(cols[2]),
+            km_total: parseFloat(cols[2]) - parseFloat(cols[1]),
+            dinheiro: parseFloat(cols[3].replace('R$ ', '').replace(',', '.')),
+            horas: parseFloat(cols[4].replace(',', '.')),
+            dia_semana: cols[5],
+            turno: cols[6],
+            movimentacao: cols[7] || '',
+            perfil_passageiro: cols[8] || '',
+            observacoes: cols[9] || '',
+            app: cols[10] || 'Uber',
+            transito: cols[11] || '',
+            preco_combustivel: parseFloat(cols[12].replace('R$ ', '').replace(',', '.')),
+            uid: currentUser.uid,
+            timestamp: new Date()
+        };
+
+        await addDoc(collection(db, "registros"), dataDoc);
+        count++;
+    }
+    showLoader(false);
+    alert(`${count} registros importados com sucesso!`);
+    loadDashboardData();
 }
 
 function updateStatusChecks(lucro) {
@@ -242,9 +539,9 @@ function updateStatusChecks(lucro) {
         }
     };
 
-    check('statusPrestacao', PRESTACAO);
-    check('statusIPVA', IPVA);
-    check('statusManutencao', MANUTENCAO);
+    check('statusPrestacao', userConfig.fixoParcela);
+    check('statusIPVA', userConfig.fixoIpva);
+    check('statusManutencao', userConfig.fixoManutencao);
 }
 
 function renderCharts(data) {
@@ -295,10 +592,6 @@ function createChart(id, type, labels, datasets) {
             }
         }
     });
-}
-
-function formatCurrency(value) {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function showLoader(show, text = 'Carregando...') {

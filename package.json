@@ -1,5 +1,11 @@
 {
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "firebase": "^12.9.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }

@@ -93,6 +93,16 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.form-group-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-top: 15px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #333;
+  grid-column: 1 / -1;
+}
+
 input, select, textarea {
   background: #333;
   border: 1px solid #444;
@@ -240,6 +250,42 @@ canvas {
   max-height: 250px;
 }
 
+.table-container {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #333;
+}
+
+th {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.btn-edit {
+    background: var(--accent-color);
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.btn-edit:hover {
+    opacity: 0.8;
+}
+
 .loader-overlay {
     position: fixed;
     top: 0;
@@ -292,4 +338,70 @@ canvas {
       flex-direction: column;
       
     }
+}
+
+.login-card {
+  max-width: 400px;
+  margin: 60px auto;
+  padding: 30px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.login-header h2 {
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 5px;
+}
+
+.full-width {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.error-text {
+  color: var(--danger-color);
+  font-size: 0.9rem;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.secondary-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.secondary-btn:hover {
+  background: #333;
+  color: #fff;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.9rem;
+}
+
+.auth-footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
 }
