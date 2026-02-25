@@ -12,7 +12,7 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - **Cache Local:** Salva o rascunho do formulário automaticamente para evitar perda de dados antes do envio.
 
 ### 2. Dashboard de Performance
-- **Indicadores Financeiros:** Total Arrecadado, Gasto Estimado (baseado em consumo médio de 10km/L), Lucro Real, Valor Restante após custos fixos.
+- **Indicadores Financeiros:** Total Arrecadado, Gasto Estimado Combustível (baseado em consumo médio de 10km/L), Gasto Estimado Carro (Manutenção, Pneu, Óleo), Lucro Real.
 - **Métricas de Eficiência:** Média de R$ por KM rodado.
 - **Estatísticas de Trabalho:** Total de Horas e Dias trabalhados no período selecionado.
 - **Filtros Temporais:** Consulta por intervalo de datas.
@@ -21,12 +21,6 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - Evolução de Ganhos diários.
 - Comparativo entre Combustível vs Lucro Estimado.
 - Histórico de KM Rodados.
-
-### 4. Gestão de Custos Fixos
-- Monitoramento de metas para pagamento de custos recorrentes:
-    - Prestação: R$ 1.200,00
-    - IPVA: R$ 300,00
-    - Manutenção: R$ 500,00
 
 ### 5. Capacidades PWA
 - **Funcionamento Offline:** Utiliza Service Worker para cachear assets essenciais (HTML, CSS, JS, Manifest e Chart.js).
@@ -44,7 +38,7 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 ### 6. Design & UI
 - **Paleta de Cores:** Fundo escuro (`#121212`) com acentos em Verde Turquesa (`#00d1b2`) para ações primárias e Azul (`#3273dc`) para métricas.
 - **Responsividade:** Layout adaptável para dispositivos móveis, utilizando Grid e Flexbox.
-- **Componentes:** Sistema de cards para indicadores e gráficos, badges coloridos para status.
+- **Componentes:** Sistema de cards para indicadores e gráficos.
 
 ## 📁 Estrutura do Projeto
 
@@ -79,7 +73,6 @@ As credenciais atuais estão no `app.js`. Para usar seu próprio banco:
 
 - **Cálculo de KM:** O sistema calcula automaticamente `km_total = km_final - km_inicial`.
 - **Custo Combustível:** Estimativa baseada em um consumo fixo de **10km/L**. O cálculo é: `(km_total / 10) * preco_combustivel_do_dia`.
-- **Status de Pagamento:** Os badges no dashboard mudam para "Pago" (verde) assim que o Lucro Real atinge o valor individual de cada custo fixo definido.
 
 ## 🤖 Diretrizes do Gemini
 

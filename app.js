@@ -427,13 +427,12 @@ function updateDashboard(data) {
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
     document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
-    document.getElementById('totalRestante').textContent = formatCurrency(metrics.restante);
+    document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
     document.getElementById('lucroReal').textContent = formatCurrency(metrics.lucroReal);
     document.getElementById('totalHoras').textContent = `${metrics.horas.toFixed(1)}h`;
     document.getElementById('totalDias').textContent = metrics.totalDias;
 
-    updateStatusChecks(metrics.lucroReal);
     renderCharts(data);
     renderHistoryTable(data);
 }
@@ -530,23 +529,6 @@ window.importFromMD = async function(content) {
     showLoader(false);
     alert(`${count} registros importados com sucesso!`);
     loadDashboardData();
-}
-
-function updateStatusChecks(lucro) {
-    const check = (id, cost) => {
-        const el = document.getElementById(id).querySelector('.badge');
-        if (lucro >= cost) {
-            el.textContent = 'Pago';
-            el.className = 'badge success';
-        } else {
-            el.textContent = 'Não Pago';
-            el.className = 'badge danger';
-        }
-    };
-
-    check('statusPrestacao', userConfig.fixoParcela);
-    check('statusIPVA', userConfig.fixoIpva);
-    check('statusManutencao', userConfig.fixoManutencao);
 }
 
 function renderCharts(data) {
