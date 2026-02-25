@@ -1,4 +1,3 @@
-Carimbo de data/hora	KM inicial	KM final	Dinheiro	Horas trabalhadas	Dia da semana	Turno	Movimentação	Perfil do passageiro	Observações	App	Transito	Preço Combustível
 20/01/2026 00:00:00	96959	97021	R$ 69,76	2	Terça	Manhã		Trabalhador		Uber	10	R$ 6,45
 21/01/2026 00:00:00	97049	97114	R$ 89,66	2	Quarta	Manhã		Trabalhador		Uber	10	R$ 6,45
 21/01/2026 00:00:00	97116	97216	R$ 148,44	5	Quarta	Noite		Trabalhador		Uber	10	R$ 6,45
@@ -55,3 +54,7 @@ Carimbo de data/hora	KM inicial	KM final	Dinheiro	Horas trabalhadas	Dia da seman
 20/02/2026 14:32:36	100856	100893	R$ 56,50	1,5	Sexta	Manhã		Trabalhador		Uber	7	R$ 6,29
 20/02/2026 22:56:45	100917	101046	R$ 215,85	5	Sexta	Noite	Pagamento	Trabalhador, Estudante		Uber	8	R$ 6,29
 22/02/2026 23:56:45	101078	101258	R$ 258,09	6	Domingo	Noite	Pagamento	Festa/Evento		Uber	10	R$ 6,29
+24/02/2026 11:59:05	101267	101286	R$ 46,25	1	Terça	Manhã	Congestionamento 	Trabalhador			1	R$ 6,29
+24/02/2026 12:56:47	101287	101305	R$ 25,84	1	Terça	Meio dia		Trabalhador		Uber	10	R$ 6,29
+24/02/2026 20:03:31	101319	101389	R$ 109,11	3	Terça	Noite	Chuva	Trabalhador		Uber	10	R$ 6,29
+25/02/2026 08:09:01	101389	101420	R$ 49,93	1	Quarta	Manhã		Trabalhador		Uber	8	R$ 6,29
