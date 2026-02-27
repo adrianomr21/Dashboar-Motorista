@@ -54,6 +54,13 @@ header {
   border-radius: 6px;
   font-weight: bold;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-icon {
+  display: none;
 }
 
 .tab-btn.active {
@@ -292,6 +299,29 @@ th {
         flex-direction: column;
         gap: 10px;
     }
+
+    .nav-tabs {
+        width: 100%;
+        justify-content: space-around;
+        padding: 8px;
+    }
+
+    .tab-text {
+        display: none;
+    }
+
+    .tab-icon {
+        display: inline-block;
+        font-size: 1.2rem;
+    }
+
+    .tab-btn, .secondary-btn {
+        padding: 10px 20px;
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
     
     .indicator-grid {
         grid-template-columns: repeat(2, 2fr);
@@ -340,6 +370,9 @@ th {
   border-radius: 6px;
   cursor: pointer;
   transition: 0.3s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .secondary-btn:hover {

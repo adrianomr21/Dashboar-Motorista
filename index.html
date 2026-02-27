@@ -6,8 +6,9 @@
     <title>Dashboard PWA Motorista</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
-    <link rel="icon" href="https://img.icons8.com/color/192/steering-wheel.png">
+    <meta name="theme-color" content="#000000">
+    <!--<link rel="icon" href="https://img.icons8.com/color/192/steering-wheel.png">-->
+    <link rel="icon" href="https://img.icons8.com/neon/96/steering-wheel.png">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -16,10 +17,22 @@
         <div class="header-content">
             <h1>🚀 DriverDash</h1>
             <div class="nav-tabs">
-                <button id="tab-cadastro" class="tab-btn active">Cadastro</button>
-                <button id="tab-dashboard" class="tab-btn">Dashboard</button>
-                <button id="tab-config" class="tab-btn">Configurações</button>
-                <button id="logoutBtn" class="secondary-btn">Sair</button>
+                <button id="tab-cadastro" class="tab-btn active">
+                    <span class="tab-text">Cadastro</span>
+                    <span class="tab-icon">+</span>
+                </button>
+                <button id="tab-dashboard" class="tab-btn">
+                    <span class="tab-text">Dashboard</span>
+                    <span class="tab-icon">📊</span>
+                </button>
+                <button id="tab-config" class="tab-btn">
+                    <span class="tab-text">Configurações</span>
+                    <span class="tab-icon">⚙️</span>
+                </button>
+                <button id="logoutBtn" class="secondary-btn">
+                    <span class="tab-text">Sair</span>
+                    <span class="tab-icon">🚪</span>
+                </button>
             </div>
             <!--<div class="user-info">
             </div>-->
