@@ -40,6 +40,11 @@
         </div>
     </header>
 
+    <!-- Alertas de Manutenção Globais -->
+    <div id="maintenance-alerts" class="alert-container section" style="display: none; margin-top: 10px; margin-bottom: 0;">
+        <!-- Preenchido via JS -->
+    </div>
+
     <main>
         <!-- SEÇÃO DE LOGIN -->
         <section id="section-login" class="section">
@@ -181,7 +186,10 @@
                         <label>Observações</label>
                         <textarea id="field-obs" rows="2"></textarea>
                     </div>
-                    <button type="submit" id="saveBtn" class="primary-btn">Salvar</button>
+                    <div class="button-group full-width" style="display: flex; gap: 10px;">
+                        <button type="submit" id="saveBtn" class="primary-btn" style="flex: 2;">Salvar</button>
+                        <button type="button" id="cancelEditBtn" class="secondary-btn" style="display: none; flex: 1; margin-top: 10px; padding: 15px;">Cancelar</button>
+                    </div>
                 </form>
             </div>
         </section>
@@ -318,35 +326,44 @@
                         <input type="number" id="cfg-fixo-manutencao" step="0.01">
                     </div>
 
-                    <div class="form-group-title full-width">🛠️ Despesas Variáveis (KMs)</div>
-                    <div class="input-group">
-                        <label>KM Revisão</label>
-                        <input type="number" id="cfg-km-revisao" step="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Custo Revisão (R$)</label>
-                        <input type="number" id="cfg-custo-revisao" step="0.01">
-                    </div>
-                    <div class="input-group">
-                        <label>KM Pneu</label>
-                        <input type="number" id="cfg-km-pneu" step="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Custo Pneus (R$)</label>
-                        <input type="number" id="cfg-custo-pneu" step="0.01">
-                    </div>
-                    <div class="input-group">
-                        <label>KM Óleo</label>
-                        <input type="number" id="cfg-km-oleo" step="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Custo Óleo (R$)</label>
-                        <input type="number" id="cfg-custo-oleo" step="0.01">
-                    </div>
-
                     <button type="submit" id="saveConfigBtn" class="primary-btn full-width">Salvar Configurações</button>
-                    
-                    <div class="form-group-title full-width">📦 Dados Externos</div>
+                </form>
+
+                <!-- Gerenciar Despesas Variáveis (KMs) -->
+                <div class="form-group-title" style="margin-top: 30px;">🛠️ Gerenciar Despesas Variáveis (KMs)</div>
+                <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">
+                    Adicione itens como Troca de Óleo, Pneus e Revisão. O app calculará o custo por KM automaticamente.
+                </p>
+                
+                <form id="form-manutencao" class="grid-form card" style="background: #252525; border: 1px solid #333;">
+                    <input type="hidden" id="manut-id">
+                    <div class="input-group">
+                        <label>Item (Ex: Troca de Óleo)</label>
+                        <input type="text" id="manut-nome" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Km Inicial (Odômetro da troca)</label>
+                        <input type="number" id="manut-km-inicial" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Total Km (Intervalo)</label>
+                        <input type="number" id="manut-km-total" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="manut-valor" required step="0.01">
+                    </div>
+                    <div class="button-group full-width" style="display: flex; gap: 10px;">
+                        <button type="submit" id="saveManutBtn" class="primary-btn" style="flex: 2; font-size: 0.9rem; padding: 12px;">Adicionar Item</button>
+                        <button type="button" id="cancelManutBtn" class="secondary-btn" style="display: none; flex: 1;">Cancelar</button>
+                    </div>
+                </form>
+
+                <div id="manutencao-cards" class="maintenance-grid">
+                    <!-- Cards serão inseridos aqui -->
+                </div>
+                
+                <div class="form-group-title full-width">📦 Dados Externos</div>
                     <input type="file" id="importFile" style="display: none;" accept=".md,.txt">
                     <button type="button" id="btnShowImport" class="secondary-btn full-width" style="margin-top: 10px;">
                         📥 Importar registros.md

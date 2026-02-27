@@ -54,20 +54,33 @@ export function calculateFuelCost(kmTotal, precoCombustivel, consumoMedio = 10) 
 }
 
 /**
- * Calcula os custos variáveis por KM (Revisão, Pneu, Óleo)
+ * Calcula os custos variáveis por KM baseado na lista de manutenções ou valores padrão.
  */
-export function calculateVariableKmCosts(kmTotal, config = DEFAULT_CONFIG) {
-    const custoRevisaoKm = config.custoRevisao / config.kmRevisao;
-    const custoPneuKm = config.custoPneu / config.kmPneu;
-    const custoOleoKm = config.custoOleo / config.kmOleo;
+export function calculateVariableKmCosts(kmTotal, config = DEFAULT_CONFIG, manuts = []) {
+    let custoPorKm = 0;
+    
+    if (manuts && manuts.length > 0) {
+        // Se houver manutenções cadastradas, usa elas para calcular o custo por KM
+        custoPorKm = manuts.reduce((acc, m) => {
+            const mKm = parseFloat(m.km_total) || 0;
+            const mValor = parseFloat(m.valor) || 0;
+            return acc + (mKm > 0 ? (mValor / mKm) : 0);
+        }, 0);
+    } else {
+        // Caso contrário, usa os valores padrão das configurações fixas
+        const custoRevisaoKm = config.custoRevisao / config.kmRevisao;
+        const custoPneuKm = config.custoPneu / config.kmPneu;
+        const custoOleoKm = config.custoOleo / config.kmOleo;
+        custoPorKm = (custoRevisaoKm || 0) + (custoPneuKm || 0) + (custoOleoKm || 0);
+    }
 
-    return kmTotal * (custoRevisaoKm + custoPneuKm + custoOleoKm);
+    return kmTotal * custoPorKm;
 }
 
 /**
  * Calcula as métricas totais para o dashboard
  */
-export function calculateDashboardMetrics(data, config = DEFAULT_CONFIG) {
+export function calculateDashboardMetrics(data, config = DEFAULT_CONFIG, manuts = []) {
     const totals = data.reduce((acc, curr) => {
         acc.ganhos += curr.dinheiro;
         
@@ -88,7 +101,7 @@ export function calculateDashboardMetrics(data, config = DEFAULT_CONFIG) {
                                (config.fixoManutencao || 0);
 
     // Custos Variáveis por KM acumulado no período
-    const custosVariaveisKm = calculateVariableKmCosts(totals.km, config);
+    const custosVariaveisKm = calculateVariableKmCosts(totals.km, config, manuts);
 
     const lucroReal = totals.ganhos - totals.combustivel - custosVariaveisKm;
     const restante = lucroReal - custosFixosMensais;

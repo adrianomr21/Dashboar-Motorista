@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, getDocs, orderBy, where, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, getDocs, orderBy, where, doc, getDoc, setDoc, updateDoc, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     DEFAULT_CONFIG, 
@@ -8,7 +8,6 @@ import {
 } from "./utils.js";
 
 // Configuração do Firebase
-// ... (mantenha o resto das variáveis iguais)
 const firebaseConfig = {
   apiKey: "AIzaSyAANN3J8E5Ed9q9dldnPyzGUoo7G3WGCzE",
   authDomain: "motorista-a0806.firebaseapp.com",
@@ -166,6 +165,9 @@ function initApp() {
     document.getElementById('logoutBtn').onclick = () => handleLogout();
     document.getElementById('field-data').onchange = updateDayOfWeek;
     document.getElementById('form-config').onsubmit = (e) => saveUserConfig(e);
+    document.getElementById('form-manutencao').onsubmit = (e) => saveManutencao(e);
+    document.getElementById('cancelManutBtn').onclick = () => resetManutForm();
+    document.getElementById('cancelEditBtn').onclick = () => resetCadastroForm();
 
     // Lógica de Importação
     const btnImport = document.getElementById('btnShowImport');
@@ -195,6 +197,8 @@ async function loadUserConfig() {
             userConfig = DEFAULT_CONFIG;
         }
         fillConfigForm();
+        await loadManutencoes(); // Aguarda manutenções carregarem
+        checkMaintenanceAlerts(); // Agora checa os alertas
     } catch (e) {
         console.error("Erro ao carregar configs:", e);
     }
@@ -209,12 +213,6 @@ function fillConfigForm() {
     document.getElementById('cfg-fixo-ipva').value = userConfig.fixoIpva;
     document.getElementById('cfg-fixo-seguro').value = userConfig.fixoSeguro;
     document.getElementById('cfg-fixo-manutencao').value = userConfig.fixoManutencao;
-    document.getElementById('cfg-km-revisao').value = userConfig.kmRevisao;
-    document.getElementById('cfg-custo-revisao').value = userConfig.custoRevisao;
-    document.getElementById('cfg-km-pneu').value = userConfig.kmPneu;
-    document.getElementById('cfg-custo-pneu').value = userConfig.custoPneu;
-    document.getElementById('cfg-km-oleo').value = userConfig.kmOleo;
-    document.getElementById('cfg-custo-oleo').value = userConfig.custoOleo;
 }
 
 async function saveUserConfig(e) {
@@ -230,12 +228,6 @@ async function saveUserConfig(e) {
         fixoIpva: parseFloat(document.getElementById('cfg-fixo-ipva').value) || 0,
         fixoSeguro: parseFloat(document.getElementById('cfg-fixo-seguro').value) || 0,
         fixoManutencao: parseFloat(document.getElementById('cfg-fixo-manutencao').value) || 0,
-        kmRevisao: parseFloat(document.getElementById('cfg-km-revisao').value) || 0,
-        custoRevisao: parseFloat(document.getElementById('cfg-custo-revisao').value) || 0,
-        kmPneu: parseFloat(document.getElementById('cfg-km-pneu').value) || 0,
-        custoPneu: parseFloat(document.getElementById('cfg-custo-pneu').value) || 0,
-        kmOleo: parseFloat(document.getElementById('cfg-km-oleo').value) || 0,
-        custoOleo: parseFloat(document.getElementById('cfg-custo-oleo').value) || 0,
         updatedAt: new Date()
     };
 
@@ -363,22 +355,29 @@ async function saveToFirebase() {
             alert('✅ Dados salvos!');
         }
 
-        // Limpa formulário
-        document.getElementById('form-cadastro').reset();
-        document.getElementById('field-id').value = '';
-        
-        // Setup para próxima entrada
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('field-data').value = today;
-        document.getElementById('field-km-inicial').value = dataDoc.km_final;
-        updateDayOfWeek();
-        saveFormCache();
+        // Limpa formulário e atualiza alertas
+        resetCadastroForm();
+        checkMaintenanceAlerts(); // Atualiza alertas imediatamente após salvar
     } catch (e) {
         console.error("Erro ao salvar: ", e);
         alert('❌ Erro ao salvar dados.');
     } finally {
         showLoader(false);
     }
+}
+
+function resetCadastroForm() {
+    const form = document.getElementById('form-cadastro');
+    form.reset();
+    document.getElementById('field-id').value = '';
+    document.getElementById('saveBtn').textContent = 'Salvar';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+    
+    // Setup para próxima entrada
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('field-data').value = today;
+    updateDayOfWeek();
+    saveFormCache();
 }
 
 // Dashboard e Filtros
@@ -411,7 +410,14 @@ async function loadDashboardData() {
             data.push(item);
         });
 
-        updateDashboard(data);
+        // Buscar manutenções ativas para o cálculo dinâmico
+        const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        const manutSnap = await getDocs(qManut);
+        const manuts = [];
+        manutSnap.forEach(d => manuts.push(d.data()));
+
+        updateDashboard(data, manuts);
+        checkMaintenanceAlerts();
     } catch (e) {
         console.error("Erro ao carregar: ", e);
         alert('Erro ao carregar dados do Firebase.');
@@ -420,8 +426,8 @@ async function loadDashboardData() {
     }
 }
 
-function updateDashboard(data) {
-    const metrics = calculateDashboardMetrics(data, userConfig);
+function updateDashboard(data, manuts = []) {
+    const metrics = calculateDashboardMetrics(data, userConfig, manuts);
 
     // Atualizar UI
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
@@ -434,10 +440,10 @@ function updateDashboard(data) {
     document.getElementById('totalDias').textContent = metrics.totalDias;
 
     renderCharts(data);
-    renderHistoryTable(data);
+    renderHistoryTable(data, manuts);
 }
 
-function renderHistoryTable(data) {
+function renderHistoryTable(data, manuts = []) {
     const tbody = document.querySelector('#table-history tbody');
     tbody.innerHTML = '';
 
@@ -450,7 +456,15 @@ function renderHistoryTable(data) {
         // Calcula lucro da linha
         const litros = item.km_total / (userConfig.consumoMedio || 10);
         const custoComb = litros * item.preco_combustivel;
-        const variaveis = (item.km_total * (userConfig.custoRevisao/userConfig.kmRevisao + userConfig.custoPneu/userConfig.kmPneu + userConfig.custoOleo/userConfig.kmOleo)) || 0;
+        
+        let custoManutKm = 0;
+        if (manuts.length > 0) {
+            custoManutKm = manuts.reduce((acc, m) => acc + (m.valor / m.km_total), 0);
+        } else {
+            custoManutKm = (userConfig.custoRevisao/userConfig.kmRevisao + userConfig.custoPneu/userConfig.kmPneu + userConfig.custoOleo/userConfig.kmOleo);
+        }
+        
+        const variaveis = (item.km_total * custoManutKm) || 0;
         const lucroItem = item.dinheiro - custoComb - variaveis;
 
         tr.innerHTML = `
@@ -458,12 +472,32 @@ function renderHistoryTable(data) {
             <td>${item.km_total.toFixed(1)}</td>
             <td>${formatCurrency(item.dinheiro)}</td>
             <td style="color: ${lucroItem >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(lucroItem)}</td>
-            <td><button class="btn-edit" data-id="${item.id}">Editar</button></td>
+            <td class="table-actions">
+                <button class="btn-edit" title="Editar">✏️</button>
+                <button class="btn-delete-record" title="Excluir">🗑️</button>
+            </td>
         `;
 
         tr.querySelector('.btn-edit').onclick = () => editRecord(item);
+        tr.querySelector('.btn-delete-record').onclick = () => deleteRecord(item.id);
         tbody.appendChild(tr);
     });
+}
+
+async function deleteRecord(id) {
+    if (!confirm('⚠️ Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) return;
+    
+    showLoader(true, 'Excluindo registro...');
+    try {
+        await deleteDoc(doc(db, "registros", id));
+        alert('✅ Registro excluído com sucesso!');
+        loadDashboardData(); // Recarrega os dados e atualiza o dashboard/alertas
+    } catch (e) {
+        console.error("Erro ao excluir registro:", e);
+        alert('❌ Erro ao excluir o registro.');
+    } finally {
+        showLoader(false);
+    }
 }
 
 function editRecord(item) {
@@ -484,6 +518,7 @@ function editRecord(item) {
     document.getElementById('field-obs').value = item.observacoes;
     
     document.getElementById('saveBtn').textContent = 'Atualizar Registro';
+    document.getElementById('cancelEditBtn').style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -579,6 +614,186 @@ function createChart(id, type, labels, datasets) {
             }
         }
     });
+}
+
+// Gerenciamento de Manutenções
+async function loadManutencoes() {
+    if (!currentUser) return;
+    try {
+        const q = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const manuts = [];
+        querySnapshot.forEach((doc) => {
+            manuts.push({ id: doc.id, ...doc.data() });
+        });
+        renderManutCards(manuts);
+        return manuts;
+    } catch (e) {
+        console.error("Erro ao carregar manutenções:", e);
+    }
+}
+
+async function saveManutencao(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando manutenção...');
+    
+    const id = document.getElementById('manut-id').value;
+    const data = {
+        nome: document.getElementById('manut-nome').value,
+        km_inicial: parseFloat(document.getElementById('manut-km-inicial').value) || 0,
+        km_total: parseFloat(document.getElementById('manut-km-total').value) || 0,
+        valor: parseFloat(document.getElementById('manut-valor').value) || 0,
+        uid: currentUser.uid,
+        updatedAt: new Date()
+    };
+
+    try {
+        if (id) {
+            await updateDoc(doc(db, "manutencoes", id), data);
+        } else {
+            await addDoc(collection(db, "manutencoes"), data);
+        }
+        resetManutForm();
+        await loadManutencoes();
+        checkMaintenanceAlerts(); // Re-verifica alertas ao mudar config
+    } catch (e) {
+        console.error("Erro ao salvar manutenção:", e);
+        alert('Erro ao salvar manutenção.');
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function deleteManutencao(id) {
+    if (!confirm('Deseja excluir esta manutenção?')) return;
+    showLoader(true, 'Excluindo...');
+    try {
+        await deleteDoc(doc(db, "manutencoes", id));
+    } catch (e) {
+        console.error(e);
+    } finally {
+        showLoader(false);
+        loadManutencoes();
+        checkMaintenanceAlerts();
+    }
+}
+
+function renderManutCards(manuts) {
+    const container = document.getElementById('manutencao-cards');
+    container.innerHTML = '';
+
+    manuts.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'maintenance-card';
+        card.innerHTML = `
+            <h4>${m.nome}</h4>
+            <div class="maintenance-info">
+                <div>KM Inicial: <b>${m.km_inicial}</b></div>
+                <div>Intervalo: <b>${m.km_total} km</b></div>
+                <div>Valor: <b>${formatCurrency(m.valor)}</b></div>
+                <div>Próxima em: <b>${m.km_inicial + m.km_total} km</b></div>
+            </div>
+            <div class="card-actions">
+                <button class="btn-edit-manut btn-small" style="background: var(--accent-color); color: white;">Editar</button>
+                <button class="btn-del-manut btn-small btn-delete">Excluir</button>
+            </div>
+        `;
+
+        card.querySelector('.btn-edit-manut').onclick = () => editManut(m);
+        card.querySelector('.btn-del-manut').onclick = () => deleteManutencao(m.id);
+        container.appendChild(card);
+    });
+}
+
+function editManut(m) {
+    document.getElementById('manut-id').value = m.id;
+    document.getElementById('manut-nome').value = m.nome;
+    document.getElementById('manut-km-inicial').value = m.km_inicial;
+    document.getElementById('manut-km-total').value = m.km_total;
+    document.getElementById('manut-valor').value = m.valor;
+    
+    document.getElementById('saveManutBtn').textContent = 'Atualizar Manutenção';
+    document.getElementById('cancelManutBtn').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetManutForm() {
+    document.getElementById('form-manutencao').reset();
+    document.getElementById('manut-id').value = '';
+    document.getElementById('saveManutBtn').textContent = 'Adicionar Manutenção';
+    document.getElementById('cancelManutBtn').style.display = 'none';
+}
+
+// Lógica de Alertas
+async function checkMaintenanceAlerts() {
+    if (!currentUser) return;
+    
+    try {
+        // Busca simples para evitar erros de índice composto no console Firebase
+        const qLast = query(
+            collection(db, "registros"),
+            where("uid", "==", currentUser.uid)
+        );
+        const lastSnap = await getDocs(qLast);
+        
+        let currentKm = 0;
+        if (!lastSnap.empty) {
+            lastSnap.forEach(doc => {
+                const km = parseFloat(doc.data().km_final) || 0;
+                if (km > currentKm) currentKm = km;
+            });
+        }
+        
+        const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        const manutSnap = await getDocs(qManut);
+        
+        const alertsContainer = document.getElementById('maintenance-alerts');
+        alertsContainer.innerHTML = '';
+        let hasAlerts = false;
+
+        manutSnap.forEach((doc) => {
+            const m = doc.data();
+            const mId = doc.id;
+            
+            const kmTroca = parseFloat(m.km_inicial) || 0;
+            const kmIntervalo = parseFloat(m.km_total) || 0;
+            const kmLimite = kmTroca + kmIntervalo;
+            const kmRestante = kmLimite - currentKm;
+            
+            if (kmRestante <= 0) {
+                hasAlerts = true;
+                createAlertItem(alertsContainer, `🚨 Hora de: ${m.nome}! (Vencido há ${Math.abs(kmRestante).toFixed(0)} km)`, 'danger', mId);
+            } else if (kmRestante <= 500) {
+                hasAlerts = true;
+                createAlertItem(alertsContainer, `⚠️ Atenção: ${m.nome} em ${kmRestante.toFixed(0)} km.`, 'warning', mId);
+            }
+        });
+
+        alertsContainer.style.display = hasAlerts ? 'block' : 'none';
+    } catch (e) {
+        console.error("Erro ao verificar alertas:", e);
+    }
+}
+
+function createAlertItem(container, text, type, id) {
+    const div = document.createElement('div');
+    div.className = `alert-item ${type}`;
+    div.innerHTML = `
+        <div class="alert-content">
+            <span>${text}</span>
+        </div>
+        <button class="alert-close" title="Fechar">✕</button>
+    `;
+    
+    div.querySelector('.alert-close').onclick = () => {
+        div.style.animation = 'fadeIn 0.3s ease reverse';
+        setTimeout(() => {
+            div.remove();
+            if (container.children.length === 0) container.style.display = 'none';
+        }, 300);
+    };
+
+    container.appendChild(div);
 }
 
 function showLoader(show, text = 'Carregando...') {
