@@ -35,6 +35,28 @@ describe('Utils - Cálculos de KM e Combustível', () => {
     });
 });
 
+describe('Utils - Despesas Variáveis e Manutenção', () => {
+    const testConfig = { ...DEFAULT_CONFIG, kmRevisao: 10000, custoRevisao: 200, kmPneu: 20000, custoPneu: 400, kmOleo: 5000, custoOleo: 100 };
+    
+    it('deve usar valores padrão quando não há lista de manutenções', () => {
+        const kmTotal = 1000;
+        // Custo por KM padrão: (200/10000) + (400/20000) + (100/5000) = 0.02 + 0.02 + 0.02 = 0.06
+        // 1000 * 0.06 = 60
+        const result = calculateDashboardMetrics([{ km_total: 1000, dinheiro: 500, preco_combustivel: 0 }], testConfig);
+        expect(result.custosVariaveisKm).toBeCloseTo(60);
+    });
+
+    it('deve calcular custo dinâmico baseado nos cards de manutenção', () => {
+        const manuts = [
+            { nome: 'Óleo', km_total: 10000, valor: 300 }, // 0.03 por KM
+            { nome: 'Pneu', km_total: 50000, valor: 1000 }  // 0.02 por KM
+        ];
+        // Total: 0.05 por KM. Para 1000km = 50.
+        const metrics = calculateDashboardMetrics([{ km_total: 1000, dinheiro: 500, preco_combustivel: 0 }], testConfig, manuts);
+        expect(metrics.custosVariaveisKm).toBe(50);
+    });
+});
+
 describe('Utils - Métricas do Dashboard', () => {
     const mockData = [
         {
