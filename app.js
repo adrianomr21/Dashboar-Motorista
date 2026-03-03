@@ -303,7 +303,9 @@ function updateDayOfWeek() {
 function saveFormCache() {
     const formData = {};
     document.querySelectorAll('#form-cadastro [id^="field-"]').forEach(field => {
-        formData[field.id] = field.value;
+        if (field.id !== 'field-data') {
+            formData[field.id] = field.value;
+        }
     });
     localStorage.setItem(CACHE_KEY, JSON.stringify(formData));
 }
@@ -314,7 +316,7 @@ function loadFormCache() {
         const data = JSON.parse(cached);
         Object.keys(data).forEach(id => {
             const el = document.getElementById(id);
-            if (el && id !== 'field-data') { // Não sobrescreve data atual se for cache antigo
+            if (el && id !== 'field-data' && id !== 'field-id') { 
                 el.value = data[id];
             }
         });
