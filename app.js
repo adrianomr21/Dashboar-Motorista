@@ -493,6 +493,7 @@ function renderHistoryTable(data, manuts = []) {
 function showRecordDetails(item, manuts = []) {
     const modal = document.getElementById('modal-detalhes');
     document.getElementById('modal-data-titulo').textContent = `📅 Detalhes de ${item.data.split('-').reverse().join('/')}`;
+    document.getElementById('modal-turno-badge').textContent = `Turno: ${item.turno || 'Não informado'}`;
 
     // Cálculos Individuais
     const kmTotal = item.km_total || 0;

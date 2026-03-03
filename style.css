@@ -655,3 +655,15 @@ th {
     from { transform: translateY(20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
 }
+
+.turno-badge {
+    background: var(--accent-color);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-top: 5px;
+    display: inline-block;
+    width: fit-content;
+}
