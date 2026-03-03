@@ -371,6 +371,49 @@
                 </form>
             </div>
         </section>
+
+        <!-- MODAL DE DETALHES DO REGISTRO -->
+        <div id="modal-detalhes" class="modal-overlay" style="display: none;">
+            <div class="modal-content card">
+                <div class="modal-header">
+                    <h3 id="modal-data-titulo">📅 Detalhes do Registro</h3>
+                    <button id="closeModalBtn" class="close-btn">&times;</button>
+                </div>
+                <div class="indicator-grid modal-indicators-grid" id="modal-indicators">
+                    <div class="card indicator">
+                        <p>💰 Arrecadado</p>
+                        <h2 id="m-totalArrecadado">R$ 0,00</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>⛽ Gasto Combustível</p>
+                        <h2 id="m-totalCombustivel">R$ 0,00</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>🚗 KM Rodados</p>
+                        <h2 id="m-totalKM">0 km</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>🔧 Gasto Est. Carro</p>
+                        <h2 id="m-gastoEstimadoCarro">R$ 0,00</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>📊 Média R$ / KM</p>
+                        <h2 id="m-custoMedioKM">R$ 0,00</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>📈 Lucro Estimado</p>
+                        <h2 id="m-lucroReal">R$ 0,00</h2>
+                    </div>
+                    <div class="card indicator">
+                        <p>⏱ Horas Totais</p>
+                        <h2 id="m-totalHoras">0h</h2>
+                    </div>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="primary-btn full-width" id="closeModalFooterBtn">Fechar</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <div id="loader" class="loader-overlay" style="display: none;">

@@ -169,6 +169,12 @@ function initApp() {
     document.getElementById('form-manutencao').onsubmit = (e) => saveManutencao(e);
     document.getElementById('cancelManutBtn').onclick = () => resetManutForm();
     document.getElementById('cancelEditBtn').onclick = () => resetCadastroForm();
+    document.getElementById('closeModalBtn').onclick = () => closeModal();
+    document.getElementById('closeModalFooterBtn').onclick = () => closeModal();
+    window.onclick = (event) => {
+        const modal = document.getElementById('modal-detalhes');
+        if (event.target == modal) closeModal();
+    };
 
     // Lógica de Importação
     const btnImport = document.getElementById('btnShowImport');
@@ -471,15 +477,57 @@ function renderHistoryTable(data, manuts = []) {
             <td>${formatCurrency(item.dinheiro)}</td>
             <td style="color: ${lucroItem >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(lucroItem)}</td>
             <td class="table-actions">
+                <button class="btn-view-record" title="Visualizar">👁️</button>
                 <button class="btn-edit" title="Editar">✏️</button>
                 <button class="btn-delete-record" title="Excluir">🗑️</button>
             </td>
         `;
 
+        tr.querySelector('.btn-view-record').onclick = () => showRecordDetails(item, manuts);
         tr.querySelector('.btn-edit').onclick = () => editRecord(item);
         tr.querySelector('.btn-delete-record').onclick = () => deleteRecord(item.id);
         tbody.appendChild(tr);
     });
+}
+
+function showRecordDetails(item, manuts = []) {
+    const modal = document.getElementById('modal-detalhes');
+    document.getElementById('modal-data-titulo').textContent = `📅 Detalhes de ${item.data.split('-').reverse().join('/')}`;
+
+    // Cálculos Individuais
+    const kmTotal = item.km_total || 0;
+    const precoComb = item.preco_combustivel || 0;
+    
+    const gastoComb = calculateFuelCost(kmTotal, precoComb, userConfig.consumoMedio);
+    
+    let custoManutKm = 0;
+    if (manuts && manuts.length > 0) {
+        custoManutKm = manuts.reduce((acc, m) => acc + (parseFloat(m.valor) / parseFloat(m.km_total)), 0);
+    } else {
+        const cRevisao = userConfig.custoRevisao / userConfig.kmRevisao || 0;
+        const cPneu = userConfig.custoPneu / userConfig.kmPneu || 0;
+        const cOleo = userConfig.custoOleo / userConfig.kmOleo || 0;
+        custoManutKm = cRevisao + cPneu + cOleo;
+    }
+    
+    const gastoCarro = kmTotal * custoManutKm;
+    const lucro = item.dinheiro - gastoComb - gastoCarro;
+    const mediaRK = kmTotal > 0 ? item.dinheiro / kmTotal : 0;
+
+    // Preencher Modal
+    document.getElementById('m-totalArrecadado').textContent = formatCurrency(item.dinheiro);
+    document.getElementById('m-totalCombustivel').textContent = formatCurrency(gastoComb);
+    document.getElementById('m-totalKM').textContent = `${kmTotal.toFixed(1)} km`;
+    document.getElementById('m-gastoEstimadoCarro').textContent = formatCurrency(gastoCarro);
+    document.getElementById('m-custoMedioKM').textContent = formatCurrency(mediaRK);
+    document.getElementById('m-lucroReal').textContent = formatCurrency(lucro);
+    document.getElementById('m-totalHoras').textContent = `${(item.horas || 0).toFixed(1)}h`;
+
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('modal-detalhes').style.display = 'none';
 }
 
 async function deleteRecord(id) {

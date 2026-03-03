@@ -452,7 +452,7 @@ th {
     gap: 8px;
 }
 
-.btn-edit, .btn-delete-record {
+.btn-edit, .btn-delete-record, .btn-view-record {
     border: none;
     padding: 6px 10px;
     border-radius: 6px;
@@ -472,6 +472,16 @@ th {
 .btn-edit:hover {
     background: var(--accent-color);
     color: #fff;
+}
+
+.btn-view-record {
+    background: rgba(0, 209, 178, 0.2);
+    color: var(--primary-color);
+}
+
+.btn-view-record:hover {
+    background: var(--primary-color);
+    color: #000;
 }
 
 .btn-delete-record {
@@ -590,4 +600,58 @@ th {
 
 .auth-footer a:hover {
   text-decoration: underline;
+}
+
+/* Modal de Detalhes */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+    padding: 20px;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    animation: slideUp 0.3s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.modal-indicators-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 15px !important;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
