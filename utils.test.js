@@ -5,7 +5,9 @@ import {
     calculateKmTotal, 
     calculateFuelCost, 
     calculateDashboardMetrics,
-    DEFAULT_CONFIG
+    DEFAULT_CONFIG,
+    getLocalDate,
+    getFirstDayOfMonth
 } from './utils';
 
 describe('Utils - Formatação e Datas', () => {
@@ -19,6 +21,16 @@ describe('Utils - Formatação e Datas', () => {
         expect(getDayOfWeek('2024-03-04')).toBe('Segunda');
         expect(getDayOfWeek('2024-03-03')).toBe('Domingo');
         expect(getDayOfWeek('')).toBe('');
+    });
+
+    it('deve retornar a data no formato YYYY-MM-DD', () => {
+        const result = getLocalDate();
+        expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('deve retornar o primeiro dia do mês no formato YYYY-MM-DD', () => {
+        const result = getFirstDayOfMonth();
+        expect(result).toMatch(/^\d{4}-\d{2}-01$/);
     });
 });
 

@@ -38,6 +38,32 @@ export function getDayOfWeek(dateVal) {
 }
 
 /**
+ * Retorna a data atual no formato YYYY-MM-DD para o fuso horário de São Paulo
+ */
+export function getLocalDate() {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const parts = formatter.formatToParts(now);
+    const day = parts.find(p => p.type === 'day').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const year = parts.find(p => p.type === 'year').value;
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Retorna o primeiro dia do mês atual no formato YYYY-MM-DD para o fuso de SP
+ */
+export function getFirstDayOfMonth() {
+    const localDate = getLocalDate();
+    return localDate.substring(0, 8) + '01';
+}
+
+/**
  * Calcula o KM total rodado
  */
 export function calculateKmTotal(kmInicial, kmFinal) {

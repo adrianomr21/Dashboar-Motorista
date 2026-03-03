@@ -4,7 +4,8 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { 
     DEFAULT_CONFIG, 
     formatCurrency, getDayOfWeek, calculateKmTotal, 
-    calculateFuelCost, calculateDashboardMetrics 
+    calculateFuelCost, calculateDashboardMetrics,
+    getLocalDate, getFirstDayOfMonth
 } from "./utils.js";
 
 // Configuração do Firebase
@@ -279,8 +280,7 @@ function setupForm() {
     
     // Data atual por padrão
     if (!dateField.value) {
-        const today = new Date().toISOString().split('T')[0];
-        dateField.value = today;
+        dateField.value = getLocalDate();
         updateDayOfWeek();
     }
 
@@ -374,19 +374,15 @@ function resetCadastroForm() {
     document.getElementById('cancelEditBtn').style.display = 'none';
     
     // Setup para próxima entrada
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('field-data').value = today;
+    document.getElementById('field-data').value = getLocalDate();
     updateDayOfWeek();
     saveFormCache();
 }
 
 // Dashboard e Filtros
 function setupDateFilters() {
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    document.getElementById('startDate').value = firstDayOfMonth.toISOString().split('T')[0];
-    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    document.getElementById('startDate').value = getFirstDayOfMonth();
+    document.getElementById('endDate').value = getLocalDate();
 }
 
 async function loadDashboardData() {
