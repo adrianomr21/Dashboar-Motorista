@@ -762,7 +762,9 @@ function editManut(m) {
     
     document.getElementById('saveManutBtn').textContent = 'Atualizar Manutenção';
     document.getElementById('cancelManutBtn').style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Rola suavemente até o formulário
+    document.getElementById('anchor-manutencao').scrollIntoView({ behavior: 'smooth' });
 }
 
 function resetManutForm() {
