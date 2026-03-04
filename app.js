@@ -618,10 +618,11 @@ function renderCharts(data) {
     const labels = data.map(d => d.data.split('-').reverse().slice(0,2).join('/')); // DD/MM
     const ganhos = data.map(d => d.dinheiro);
     const km = data.map(d => d.km_total);
-    const lucro = data.map(d => {
-        const litros = d.km_total / 10;
-        return d.dinheiro - (litros * d.preco_combustivel);
+    const combustivel = data.map(d => {
+        const litros = d.km_total / (userConfig.consumoMedio || 10);
+        return litros * d.preco_combustivel;
     });
+    const lucro = data.map((d, i) => d.dinheiro - combustivel[i]);
 
     createChart('ganhosChart', 'line', labels, [{
         label: 'Ganhos (R$)',
@@ -632,6 +633,7 @@ function renderCharts(data) {
     }]);
 
     createChart('combustivelLucroChart', 'bar', labels, [
+        { label: 'Combustível (R$)', data: combustivel, backgroundColor: '#ff3860' },
         { label: 'Lucro Est. (R$)', data: lucro, backgroundColor: '#23d160' }
     ]);
 
