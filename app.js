@@ -401,6 +401,7 @@ async function loadDashboardData() {
 
         const q = query(
             collection(db, "registros"),
+            where("uid", "==", currentUser.uid),
             where("data", ">=", start),
             where("data", "<=", end),
             orderBy("data", "asc")
