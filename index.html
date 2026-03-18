@@ -259,6 +259,22 @@
 
             <section id="charts">
                 <div class="chart-container card">
+                    <h3>📊 Distribuição de Ganhos (R$)</h3>
+                    <div class="distribution-bar-container">
+                        <div id="dist-bar-fuel" class="dist-bar-segment fuel" title="Combustível"></div>
+                        <div id="dist-bar-variable" class="dist-bar-segment variable" title="Custos Variáveis"></div>
+                        <div id="dist-bar-fixed" class="dist-bar-segment fixed" title="Custos Fixos"></div>
+                        <div id="dist-bar-profit" class="dist-bar-segment profit" title="Lucro"></div>
+                    </div>
+                    <div class="distribution-labels">
+                        <span id="label-fuel"><i class="dot fuel"></i> Combustível: R$ 0,00</span>
+                        <span id="label-variable"><i class="dot variable"></i> Variáveis: R$ 0,00</span>
+                        <span id="label-fixed"><i class="dot fixed"></i> Fixos: R$ 0,00</span>
+                        <span id="label-profit"><i class="dot profit"></i> Lucro: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="chart-container card">
                     <h3>Arrecadado por Dia</h3>
                     <canvas id="ganhosChart"></canvas>
                 </div>

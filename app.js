@@ -388,8 +388,11 @@ function resetCadastroForm() {
 }
 
 // Dashboard e Filtros
+const FILTER_START_DATE_KEY = 'driver_dash_filter_start';
+
 function setupDateFilters() {
-    document.getElementById('startDate').value = getFirstDayOfMonth();
+    const savedStart = localStorage.getItem(FILTER_START_DATE_KEY);
+    document.getElementById('startDate').value = savedStart || getFirstDayOfMonth();
     document.getElementById('endDate').value = getLocalDate();
 }
 
@@ -398,6 +401,9 @@ async function loadDashboardData() {
     try {
         const start = document.getElementById('startDate').value;
         const end = document.getElementById('endDate').value;
+
+        // Salva a data inicial no localStorage para persistência
+        localStorage.setItem(FILTER_START_DATE_KEY, start);
 
         const q = query(
             collection(db, "registros"),
@@ -444,8 +450,46 @@ function updateDashboard(data, manuts = []) {
     document.getElementById('totalHoras').textContent = `${metrics.horas.toFixed(1)}h`;
     document.getElementById('totalDias').textContent = metrics.totalDias;
 
+    updateDistributionBar(metrics);
     renderCharts(data);
     renderHistoryTable(data, manuts);
+}
+
+function updateDistributionBar(metrics) {
+    const total = metrics.ganhos || 0;
+    
+    // Cálculo de custos fixos proporcional aos dias trabalhados no período
+    const custosFixosPeriodo = (metrics.custosFixosMensais / (userConfig.diasTrabalhadosMes || 24)) * metrics.totalDias;
+    const lucro = Math.max(0, total - metrics.combustivel - metrics.custosVariaveisKm - custosFixosPeriodo);
+
+    const segments = {
+        fuel: total > 0 ? (metrics.combustivel / total) * 100 : 0,
+        variable: total > 0 ? (metrics.custosVariaveisKm / total) * 100 : 0,
+        fixed: total > 0 ? (custosFixosPeriodo / total) * 100 : 0,
+        profit: total > 0 ? (lucro / total) * 100 : 0
+    };
+
+    // Ajuste se a soma ultrapassar 100% (em caso de prejuízo onde lucro é 0)
+    const sum = segments.fuel + segments.variable + segments.fixed + segments.profit;
+    if (sum > 100 && total > 0) {
+        const factor = 100 / sum;
+        segments.fuel *= factor;
+        segments.variable *= factor;
+        segments.fixed *= factor;
+        segments.profit = 0;
+    }
+
+    // Atualizar Barras
+    document.getElementById('dist-bar-fuel').style.width = `${segments.fuel}%`;
+    document.getElementById('dist-bar-variable').style.width = `${segments.variable}%`;
+    document.getElementById('dist-bar-fixed').style.width = `${segments.fixed}%`;
+    document.getElementById('dist-bar-profit').style.width = `${segments.profit}%`;
+
+    // Atualizar Labels
+    document.getElementById('label-fuel').innerHTML = `<i class="dot fuel"></i> Gasolina: ${formatCurrency(metrics.combustivel)}`;
+    document.getElementById('label-variable').innerHTML = `<i class="dot variable"></i> Variáveis: ${formatCurrency(metrics.custosVariaveisKm)}`;
+    document.getElementById('label-fixed').innerHTML = `<i class="dot fixed"></i> Fixos: ${formatCurrency(custosFixosPeriodo)}`;
+    document.getElementById('label-profit').innerHTML = `<i class="dot profit"></i> Lucro: ${formatCurrency(lucro)}`;
 }
 
 function renderHistoryTable(data, manuts = []) {

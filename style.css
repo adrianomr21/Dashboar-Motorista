@@ -224,6 +224,48 @@ input[type="date"] {
   font-size: 1.1rem;
 }
 
+/* Barra de Distribuição */
+.distribution-bar-container {
+    display: flex;
+    height: 35px;
+    width: 100%;
+    background-color: #333;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border: 1px solid #444;
+}
+
+.dist-bar-segment {
+    height: 100%;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fuel { background-color: var(--danger-color); }
+.variable { background-color: #ffae42; }
+.fixed { background-color: #ffdd57; }
+.profit { background-color: var(--success-color); }
+
+.distribution-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #ccc;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
 canvas {
   width: 100% !important;
   max-height: 250px;
