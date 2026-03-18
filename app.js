@@ -27,6 +27,7 @@ let charts = {};
 let currentUser = null;
 let userConfig = DEFAULT_CONFIG;
 const CACHE_KEY = 'driver_dash_form_cache';
+const LAST_ENTRY_KEY = 'driver_dash_last_entry';
 
 // Elementos da UI
 const sections = {
@@ -381,6 +382,8 @@ async function saveToFirebase() {
             alert('✅ Registro atualizado!');
         } else {
             await addDoc(collection(db, "registros"), dataDoc);
+            // Salva como último registro para facilitar o próximo preenchimento
+            localStorage.setItem(LAST_ENTRY_KEY, JSON.stringify(dataDoc));
             alert('✅ Dados salvos!');
         }
 
@@ -397,15 +400,36 @@ async function saveToFirebase() {
 
 function resetCadastroForm() {
     const form = document.getElementById('form-cadastro');
+    const lastEntry = localStorage.getItem(LAST_ENTRY_KEY);
+    
     form.reset();
     document.getElementById('field-id').value = '';
     document.getElementById('saveBtn').textContent = 'Salvar';
     document.getElementById('cancelEditBtn').style.display = 'none';
+
+    // Se houver um registro anterior, pré-preenche os campos (exceto data e dia)
+    if (lastEntry) {
+        const data = JSON.parse(lastEntry);
+        document.getElementById('field-km-inicial').value = data.km_final || '';
+        document.getElementById('field-km-final').value = '';
+        document.getElementById('field-dinheiro').value = '';
+        document.getElementById('field-hora-inicio').value = data.hora_fim || getCurrentTime();
+        document.getElementById('field-hora-fim').value = '';
+        document.getElementById('display-horas-total').value = '0:00';
+        document.getElementById('field-turno').value = data.turno || 'Manhã';
+        document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
+        document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
+        document.getElementById('field-app').value = data.app || 'Uber';
+        document.getElementById('field-transito').value = data.transito || 'Moderado';
+        document.getElementById('field-combustivel').value = data.preco_combustivel || '';
+        document.getElementById('field-obs').value = '';
+    } else {
+        document.getElementById('field-hora-inicio').value = getCurrentTime();
+        document.getElementById('display-horas-total').value = '0:00';
+    }
     
-    // Setup para próxima entrada
+    // Data e Dia da Semana sempre atuais
     document.getElementById('field-data').value = getLocalDate();
-    document.getElementById('field-hora-inicio').value = getCurrentTime();
-    document.getElementById('display-horas-total').value = '0:00';
     updateDayOfWeek();
     saveFormCache();
 }
