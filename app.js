@@ -5,7 +5,7 @@ import {
     DEFAULT_CONFIG, 
     formatCurrency, getDayOfWeek, calculateKmTotal, 
     calculateFuelCost, calculateDashboardMetrics,
-    getLocalDate, getFirstDayOfMonth
+    getLocalDate, getFirstDayOfMonth, getCurrentTime, calculateTimeDiff
 } from "./utils.js";
 
 // Configuração do Firebase
@@ -283,12 +283,27 @@ function switchTab(target) {
 function setupForm() {
     const form = document.getElementById('form-cadastro');
     const dateField = document.getElementById('field-data');
+    const startField = document.getElementById('field-hora-inicio');
+    const endField = document.getElementById('field-hora-fim');
+    const displayTotal = document.getElementById('display-horas-total');
     
-    // Data atual por padrão
+    // Configurações Iniciais
     if (!dateField.value) {
         dateField.value = getLocalDate();
         updateDayOfWeek();
     }
+    
+    if (!startField.value) {
+        startField.value = getCurrentTime();
+    }
+
+    const updateCalculatedHours = () => {
+        const diff = calculateTimeDiff(startField.value, endField.value);
+        displayTotal.value = diff.formatted;
+    };
+
+    startField.addEventListener('input', updateCalculatedHours);
+    endField.addEventListener('input', updateCalculatedHours);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -336,13 +351,19 @@ async function saveToFirebase() {
         const kmInicial = parseFloat(document.getElementById('field-km-inicial').value) || 0;
         const kmFinal = parseFloat(document.getElementById('field-km-final').value) || 0;
         
+        const startVal = document.getElementById('field-hora-inicio').value;
+        const endVal = document.getElementById('field-hora-fim').value;
+        const timeDiff = calculateTimeDiff(startVal, endVal);
+
         const dataDoc = {
             data: document.getElementById('field-data').value,
             km_inicial: kmInicial,
             km_final: kmFinal,
             km_total: calculateKmTotal(kmInicial, kmFinal),
             dinheiro: parseFloat(document.getElementById('field-dinheiro').value) || 0,
-            horas: parseFloat(document.getElementById('field-horas').value) || 0,
+            hora_inicio: startVal,
+            hora_fim: endVal,
+            horas: timeDiff.decimal, // Salva o decimal para métricas
             dia_semana: document.getElementById('field-dia-semana').value,
             turno: document.getElementById('field-turno').value,
             movimentacao: document.getElementById('field-movimentacao').value,
@@ -383,6 +404,8 @@ function resetCadastroForm() {
     
     // Setup para próxima entrada
     document.getElementById('field-data').value = getLocalDate();
+    document.getElementById('field-hora-inicio').value = getCurrentTime();
+    document.getElementById('display-horas-total').value = '0:00';
     updateDayOfWeek();
     saveFormCache();
 }

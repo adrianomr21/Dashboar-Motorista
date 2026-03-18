@@ -104,6 +104,44 @@ export function calculateVariableKmCosts(kmTotal, config = DEFAULT_CONFIG, manut
 }
 
 /**
+ * Retorna a hora atual no formato HH:MM (Fuso SP)
+ */
+export function getCurrentTime() {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    return formatter.format(now);
+}
+
+/**
+ * Calcula a diferença entre duas strings de tempo (HH:MM)
+ * Retorna { decimal, formatted }
+ */
+export function calculateTimeDiff(start, end) {
+    if (!start || !end) return { decimal: 0, formatted: "0:00" };
+    
+    const [h1, m1] = start.split(':').map(Number);
+    const [h2, m2] = end.split(':').map(Number);
+    
+    let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+    
+    // Tratar virada de dia (ex: 22:00 até 02:00)
+    if (diffMinutes < 0) diffMinutes += 24 * 60;
+    
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    
+    return {
+        decimal: diffMinutes / 60,
+        formatted: `${hours}:${mins.toString().padStart(2, '0')}`
+    };
+}
+
+/**
  * Calcula as métricas totais para o dashboard
  */
 export function calculateDashboardMetrics(data, config = DEFAULT_CONFIG, manuts = []) {

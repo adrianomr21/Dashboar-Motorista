@@ -123,8 +123,16 @@
                         <input type="number" id="field-dinheiro" step="0.01" placeholder="0,00">
                     </div>
                     <div class="input-group">
-                        <label>Horas Trabalhadas</label>
-                        <input type="number" id="field-horas" step="0.1" placeholder="0.0">
+                        <label>Hora Início</label>
+                        <input type="time" id="field-hora-inicio" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Hora Fim</label>
+                        <input type="time" id="field-hora-fim">
+                    </div>
+                    <div class="input-group">
+                        <label>Tempo Trabalhado</label>
+                        <input type="text" id="display-horas-total" readonly placeholder="0:00" style="background: #2a2a2a; color: var(--primary-color); font-weight: bold; text-align: center;">
                     </div>
                     <div class="input-group">
                         <label>Dia da Semana</label>
