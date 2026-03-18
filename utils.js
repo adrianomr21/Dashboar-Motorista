@@ -142,6 +142,17 @@ export function calculateTimeDiff(start, end) {
 }
 
 /**
+ * Formata horas decimais (ex: 2.5) para string HH:MM
+ */
+export function formatDecimalHours(decimalHours) {
+    if (!decimalHours || decimalHours <= 0) return "0:00";
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    return `${hours}:${mins.toString().padStart(2, '0')}`;
+}
+
+/**
  * Calcula as métricas totais para o dashboard
  */
 export function calculateDashboardMetrics(data, config = DEFAULT_CONFIG, manuts = []) {

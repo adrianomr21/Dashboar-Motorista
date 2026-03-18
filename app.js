@@ -5,7 +5,8 @@ import {
     DEFAULT_CONFIG, 
     formatCurrency, getDayOfWeek, calculateKmTotal, 
     calculateFuelCost, calculateDashboardMetrics,
-    getLocalDate, getFirstDayOfMonth, getCurrentTime, calculateTimeDiff
+    getLocalDate, getFirstDayOfMonth, getCurrentTime, calculateTimeDiff,
+    formatDecimalHours
 } from "./utils.js";
 
 // Configuração do Firebase
@@ -494,7 +495,7 @@ function updateDashboard(data, manuts = []) {
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
     document.getElementById('lucroReal').textContent = formatCurrency(metrics.lucroReal);
-    document.getElementById('totalHoras').textContent = `${metrics.horas.toFixed(1)}h`;
+    document.getElementById('totalHoras').textContent = formatDecimalHours(metrics.horas);
     document.getElementById('totalDias').textContent = metrics.totalDias;
 
     updateDistributionBar(metrics);
@@ -509,28 +510,39 @@ function updateDistributionBar(metrics) {
     const custosFixosPeriodo = (metrics.custosFixosMensais / (userConfig.diasTrabalhadosMes || 24)) * metrics.totalDias;
     const lucro = Math.max(0, total - metrics.combustivel - metrics.custosVariaveisKm - custosFixosPeriodo);
 
-    const segments = {
-        fuel: total > 0 ? (metrics.combustivel / total) * 100 : 0,
-        variable: total > 0 ? (metrics.custosVariaveisKm / total) * 100 : 0,
-        fixed: total > 0 ? (custosFixosPeriodo / total) * 100 : 0,
-        profit: total > 0 ? (lucro / total) * 100 : 0
-    };
+    // Valores padrão para evitar NaN se o total for 0
+    let segments = { fuel: 0, variable: 0, fixed: 0, profit: 0 };
 
-    // Ajuste se a soma ultrapassar 100% (em caso de prejuízo onde lucro é 0)
-    const sum = segments.fuel + segments.variable + segments.fixed + segments.profit;
-    if (sum > 100 && total > 0) {
-        const factor = 100 / sum;
-        segments.fuel *= factor;
-        segments.variable *= factor;
-        segments.fixed *= factor;
-        segments.profit = 0;
+    if (total > 0) {
+        segments = {
+            fuel: (metrics.combustivel / total) * 100,
+            variable: (metrics.custosVariaveisKm / total) * 100,
+            fixed: (custosFixosPeriodo / total) * 100,
+            profit: (lucro / total) * 100
+        };
+
+        // Ajuste se a soma ultrapassar 100% (em caso de prejuízo onde lucro é 0)
+        const sum = segments.fuel + segments.variable + segments.fixed + segments.profit;
+        if (sum > 100) {
+            const factor = 100 / sum;
+            segments.fuel *= factor;
+            segments.variable *= factor;
+            segments.fixed *= factor;
+            segments.profit = 0;
+        }
     }
 
-    // Atualizar Barras
-    document.getElementById('dist-bar-fuel').style.width = `${segments.fuel}%`;
-    document.getElementById('dist-bar-variable').style.width = `${segments.variable}%`;
-    document.getElementById('dist-bar-fixed').style.width = `${segments.fixed}%`;
-    document.getElementById('dist-bar-profit').style.width = `${segments.profit}%`;
+    // Atualizar Barras com largura mínima para garantir visibilidade se houver valor
+    const setWidth = (id, val) => {
+        const el = document.getElementById(id);
+        el.style.width = `${val}%`;
+        el.style.minWidth = (val > 0 && val < 2) ? '2px' : '0'; 
+    };
+
+    setWidth('dist-bar-fuel', segments.fuel);
+    setWidth('dist-bar-variable', segments.variable);
+    setWidth('dist-bar-fixed', segments.fixed);
+    setWidth('dist-bar-profit', segments.profit);
 
     // Atualizar Labels
     document.getElementById('label-fuel').innerHTML = `<i class="dot fuel"></i> Gasolina: ${formatCurrency(metrics.combustivel)}`;
