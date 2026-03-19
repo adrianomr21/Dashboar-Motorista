@@ -285,10 +285,22 @@ function switchTab(target) {
 function setupForm() {
     const form = document.getElementById('form-cadastro');
     const dateField = document.getElementById('field-data');
+    const moneyField = document.getElementById('field-dinheiro');
     const startField = document.getElementById('field-hora-inicio');
     const endField = document.getElementById('field-hora-fim');
     const displayTotal = document.getElementById('display-horas-total');
     
+    // Máscara de Moeda
+    moneyField.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value === '') {
+            e.target.value = '';
+            return;
+        }
+        value = (parseInt(value) / 100).toFixed(2);
+        e.target.value = value.replace('.', ',');
+    });
+
     // Configurações Iniciais
     if (!dateField.value) {
         dateField.value = getLocalDate();
@@ -357,12 +369,15 @@ async function saveToFirebase() {
         const endVal = document.getElementById('field-hora-fim').value;
         const timeDiff = calculateTimeDiff(startVal, endVal);
 
+        // Converte valor formatado "0,00" para float
+        const dinheiroVal = parseFloat(document.getElementById('field-dinheiro').value.replace(',', '.')) || 0;
+
         const dataDoc = {
             data: document.getElementById('field-data').value,
             km_inicial: kmInicial,
             km_final: kmFinal,
             km_total: calculateKmTotal(kmInicial, kmFinal),
-            dinheiro: parseFloat(document.getElementById('field-dinheiro').value) || 0,
+            dinheiro: dinheiroVal,
             hora_inicio: startVal,
             hora_fim: endVal,
             horas: timeDiff.decimal, // Salva o decimal para métricas
@@ -620,13 +635,15 @@ function showRecordDetails(item, manuts = []) {
     const mediaRK = kmTotal > 0 ? item.dinheiro / kmTotal : 0;
 
     // Preencher Modal
+    document.getElementById('m-horaInicio').textContent = item.hora_inicio || '--:--';
+    document.getElementById('m-horaFim').textContent = item.hora_fim || '--:--';
     document.getElementById('m-totalArrecadado').textContent = formatCurrency(item.dinheiro);
     document.getElementById('m-totalCombustivel').textContent = formatCurrency(gastoComb);
     document.getElementById('m-totalKM').textContent = `${kmTotal.toFixed(1)} km`;
     document.getElementById('m-gastoEstimadoCarro').textContent = formatCurrency(gastoCarro);
     document.getElementById('m-custoMedioKM').textContent = formatCurrency(mediaRK);
     document.getElementById('m-lucroReal').textContent = formatCurrency(lucro);
-    document.getElementById('m-totalHoras').textContent = `${(item.horas || 0).toFixed(1)}h`;
+    document.getElementById('m-totalHoras').textContent = formatDecimalHours(item.horas || 0);
 
     modal.style.display = 'flex';
 }
@@ -657,8 +674,12 @@ function editRecord(item) {
     document.getElementById('field-data').value = item.data;
     document.getElementById('field-km-inicial').value = item.km_inicial;
     document.getElementById('field-km-final').value = item.km_final;
-    document.getElementById('field-dinheiro').value = item.dinheiro;
-    document.getElementById('field-horas').value = item.horas;
+    
+    // Formata o dinheiro para "0,00" ao editar
+    document.getElementById('field-dinheiro').value = item.dinheiro.toFixed(2).replace('.', ',');
+    
+    document.getElementById('field-hora-inicio').value = item.hora_inicio || '';
+    document.getElementById('field-hora-fim').value = item.hora_fim || '';
     document.getElementById('field-dia-semana').value = item.dia_semana;
     document.getElementById('field-turno').value = item.turno;
     document.getElementById('field-movimentacao').value = item.movimentacao;
@@ -667,6 +688,10 @@ function editRecord(item) {
     document.getElementById('field-transito').value = item.transito;
     document.getElementById('field-combustivel').value = item.preco_combustivel;
     document.getElementById('field-obs').value = item.observacoes;
+    
+    // Atualiza o display de horas totais formatado
+    const timeDiff = calculateTimeDiff(item.hora_inicio, item.hora_fim);
+    document.getElementById('display-horas-total').value = timeDiff.formatted;
     
     document.getElementById('saveBtn').textContent = 'Atualizar Registro';
     document.getElementById('cancelEditBtn').style.display = 'block';
