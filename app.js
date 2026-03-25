@@ -36,12 +36,14 @@ const sections = {
     signup: document.getElementById('section-signup'),
     cadastro: document.getElementById('section-cadastro'),
     dashboard: document.getElementById('section-dashboard'),
+    abastecimento: document.getElementById('section-abastecimento'),
     config: document.getElementById('section-config')
 };
 
 const tabs = {
     cadastro: document.getElementById('tab-cadastro'),
     dashboard: document.getElementById('tab-dashboard'),
+    abastecimento: document.getElementById('tab-abastecimento'),
     config: document.getElementById('tab-config')
 };
 
@@ -163,6 +165,7 @@ function initApp() {
     setupDateFilters();
     loadFormCache();
     loadUserConfig();
+    setupAbastecimento();
     
     document.getElementById('updateBtn').onclick = () => loadDashboardData();
     document.getElementById('logoutBtn').onclick = () => handleLogout();
@@ -174,8 +177,10 @@ function initApp() {
     document.getElementById('closeModalBtn').onclick = () => closeModal();
     document.getElementById('closeModalFooterBtn').onclick = () => closeModal();
     window.onclick = (event) => {
-        const modal = document.getElementById('modal-detalhes');
-        if (event.target == modal) closeModal();
+        const modalDet = document.getElementById('modal-detalhes');
+        const modalAbs = document.getElementById('modal-abastecimento');
+        if (event.target == modalDet) closeModal();
+        if (event.target == modalAbs) closeAbastecimentoModal();
     };
 
     // Lógica de Importação
@@ -207,6 +212,7 @@ async function loadUserConfig() {
         }
         fillConfigForm();
         await loadManutencoes(); // Aguarda manutenções carregarem
+        await loadAbastecimentos(); // Carrega abastecimentos
         checkMaintenanceAlerts(); // Agora checa os alertas
     } catch (e) {
         console.error("Erro ao carregar configs:", e);
@@ -265,6 +271,10 @@ function setupNavigation() {
         switchTab('dashboard');
         loadDashboardData();
     });
+    tabs.abastecimento.addEventListener('click', () => {
+        switchTab('abastecimento');
+        loadAbastecimentos();
+    });
     tabs.config.addEventListener('click', () => {
         switchTab('config');
     });
@@ -279,6 +289,149 @@ function switchTab(target) {
             tabs[key].classList.toggle('active', key === target);
         }
     });
+}
+
+// Lógica de Abastecimento
+function setupAbastecimento() {
+    const form = document.getElementById('form-abastecimento');
+    const totalInput = document.getElementById('abs-valor-total');
+    const priceInput = document.getElementById('abs-preco-litro');
+    const litersInput = document.getElementById('abs-litros');
+
+    const updateLiters = () => {
+        const total = parseFloat(totalInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        if (price > 0) {
+            litersInput.value = (total / price).toFixed(2) + ' L';
+        } else {
+            litersInput.value = '0,00 L';
+        }
+    };
+
+    totalInput.oninput = updateLiters;
+    priceInput.oninput = updateLiters;
+
+    document.getElementById('btnAddAbastecimento').onclick = () => openAbastecimentoModal();
+    document.getElementById('closeAbastecimentoBtn').onclick = () => closeAbastecimentoModal();
+    document.getElementById('closeAbsFooterBtn').onclick = () => closeAbastecimentoModal();
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        await saveAbastecimento();
+    };
+}
+
+function openAbastecimentoModal(data = null) {
+    const modal = document.getElementById('modal-abastecimento');
+    const form = document.getElementById('form-abastecimento');
+    form.reset();
+    
+    if (data) {
+        document.getElementById('abs-id').value = data.id;
+        document.getElementById('abs-data').value = data.data;
+        document.getElementById('abs-valor-total').value = data.valor_total;
+        document.getElementById('abs-preco-litro').value = data.preco_litro;
+        document.getElementById('abs-litros').value = (data.valor_total / data.preco_litro).toFixed(2) + ' L';
+        document.querySelector('#modal-abastecimento h3').textContent = '⛽ Editar Abastecimento';
+    } else {
+        document.getElementById('abs-id').value = '';
+        document.getElementById('abs-data').value = getLocalDate();
+        document.querySelector('#modal-abastecimento h3').textContent = '⛽ Registrar Abastecimento';
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeAbastecimentoModal() {
+    document.getElementById('modal-abastecimento').style.display = 'none';
+}
+
+async function saveAbastecimento() {
+    showLoader(true, 'Salvando abastecimento...');
+    const id = document.getElementById('abs-id').value;
+    const data = {
+        data: document.getElementById('abs-data').value,
+        valor_total: parseFloat(document.getElementById('abs-valor-total').value) || 0,
+        preco_litro: parseFloat(document.getElementById('abs-preco-litro').value) || 0,
+        uid: currentUser.uid,
+        timestamp: new Date()
+    };
+
+    try {
+        if (id) {
+            await updateDoc(doc(db, "abastecimentos", id), data);
+        } else {
+            await addDoc(collection(db, "abastecimentos"), data);
+        }
+        closeAbastecimentoModal();
+        await loadAbastecimentos();
+    } catch (e) {
+        console.error("Erro ao salvar abastecimento:", e);
+        alert('Erro ao salvar abastecimento.');
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function loadAbastecimentos() {
+    if (!currentUser) return;
+    try {
+        const q = query(
+            collection(db, "abastecimentos"),
+            where("uid", "==", currentUser.uid),
+            orderBy("data", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const abastecimentos = [];
+        querySnapshot.forEach((doc) => {
+            abastecimentos.push({ id: doc.id, ...doc.data() });
+        });
+        renderAbastecimentoCards(abastecimentos);
+    } catch (e) {
+        console.error("Erro ao carregar abastecimentos:", e);
+    }
+}
+
+function renderAbastecimentoCards(data) {
+    const container = document.getElementById('abastecimento-cards');
+    container.innerHTML = '';
+
+    data.forEach(item => {
+        const litros = item.valor_total / item.preco_litro;
+        const card = document.createElement('div');
+        card.className = 'abastecimento-card';
+        card.innerHTML = `
+            <div class="abastecimento-header">
+                <span class="abastecimento-date">${item.data.split('-').reverse().join('/')}</span>
+                <span class="abastecimento-value">${formatCurrency(item.valor_total)}</span>
+            </div>
+            <div class="abastecimento-details">
+                <div>Preço/L: <b>${formatCurrency(item.preco_litro)}</b></div>
+                <div>Litros: <b>${litros.toFixed(2)} L</b></div>
+            </div>
+            <div class="card-actions">
+                <button class="btn-edit-abs btn-small" style="background: var(--accent-color); color: white;">Editar</button>
+                <button class="btn-del-abs btn-small btn-delete">Excluir</button>
+            </div>
+        `;
+
+        card.querySelector('.btn-edit-abs').onclick = () => openAbastecimentoModal(item);
+        card.querySelector('.btn-del-abs').onclick = () => deleteAbastecimento(item.id);
+        container.appendChild(card);
+    });
+}
+
+async function deleteAbastecimento(id) {
+    if (!confirm('Deseja excluir este abastecimento?')) return;
+    showLoader(true, 'Excluindo...');
+    try {
+        await deleteDoc(doc(db, "abastecimentos", id));
+        await loadAbastecimentos();
+    } catch (e) {
+        console.error(e);
+    } finally {
+        showLoader(false);
+    }
 }
 
 // Gerenciamento do Formulário

@@ -25,13 +25,13 @@
                     <span class="tab-text">Dashboard</span>
                     <span class="tab-icon">📈</span>
                 </button>
+                <button id="tab-abastecimento" class="tab-btn">
+                    <span class="tab-text">Abastecimentos</span>
+                    <span class="tab-icon">⛽</span>
+                </button>
                 <button id="tab-config" class="tab-btn">
                     <span class="tab-text">Configurações</span>
                     <span class="tab-icon">⚙️</span>
-                </button>
-                <button id="logoutBtn" class="secondary-btn">
-                    <span class="tab-text">Sair</span>
-                    <span class="tab-icon">➜]</span>
                 </button>
             </div>
             <!--<div class="user-info">
@@ -318,6 +318,17 @@
             </section>
         </section>
 
+        <!-- SEÇÃO DE ABASTECIMENTOS -->
+        <section id="section-abastecimento" class="section" style="display: none;">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 0;">⛽ Meus Abastecimentos</h3>
+                <button id="btnAddAbastecimento" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0;">+ Novo</button>
+            </div>
+            <div id="abastecimento-cards" class="maintenance-grid">
+                <!-- Cards serão inseridos aqui -->
+            </div>
+        </section>
+
         <!-- SEÇÃO DE CONFIGURAÇÕES -->
         <section id="section-config" class="section" style="display: none;">
             <div class="card">
@@ -397,13 +408,51 @@
                 </div>
                 
                 <div class="form-group-title full-width">📦 Dados Externos</div>
-                    <input type="file" id="importFile" style="display: none;" accept=".md,.txt">
-                    <button type="button" id="btnShowImport" class="secondary-btn full-width" style="margin-top: 10px;">
-                        📥 Importar registros.md
+                <input type="file" id="importFile" style="display: none;" accept=".md,.txt">
+                <button type="button" id="btnShowImport" class="secondary-btn full-width" style="margin-top: 10px;">
+                    📥 Importar registros.md
+                </button>
+
+                <div style="margin-top: 40px; border-top: 1px solid #333; padding-top: 20px; text-align: center;">
+                    <button id="logoutBtn" class="secondary-btn full-width" style="border-color: var(--danger-color); color: var(--danger-color);">
+                        Sair da Conta
                     </button>
-                </form>
+                </div>
             </div>
         </section>
+
+        <!-- MODAL DE ABASTECIMENTO -->
+        <div id="modal-abastecimento" class="modal-overlay" style="display: none;">
+            <div class="modal-content card">
+                <div class="modal-header">
+                    <h3>⛽ Registrar Abastecimento</h3>
+                    <button id="closeAbastecimentoBtn" class="close-btn">&times;</button>
+                </div>
+                <form id="form-abastecimento" class="grid-form">
+                    <input type="hidden" id="abs-id">
+                    <div class="input-group">
+                        <label>Data</label>
+                        <input type="date" id="abs-data" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Valor Total (R$)</label>
+                        <input type="number" id="abs-valor-total" step="0.01" required placeholder="0,00">
+                    </div>
+                    <div class="input-group">
+                        <label>Preço por Litro (R$)</label>
+                        <input type="number" id="abs-preco-litro" step="0.001" required placeholder="0,000">
+                    </div>
+                    <div class="input-group">
+                        <label>Litros Calculados</label>
+                        <input type="text" id="abs-litros" readonly placeholder="0,00" style="background: #2a2a2a; color: var(--primary-color); font-weight: bold; text-align: center;">
+                    </div>
+                    <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" id="saveAbsBtn" class="primary-btn" style="flex: 1;">Salvar</button>
+                        <button type="button" id="closeAbsFooterBtn" class="secondary-btn" style="flex: 1;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- MODAL DE DETALHES DO REGISTRO -->
         <div id="modal-detalhes" class="modal-overlay" style="display: none;">

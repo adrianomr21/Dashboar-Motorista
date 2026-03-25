@@ -415,6 +415,50 @@ th {
     margin-top: 20px;
 }
 
+.abastecimento-card {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent-color);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s;
+}
+
+.abastecimento-card:hover {
+    transform: translateY(-3px);
+}
+
+.abastecimento-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.abastecimento-date {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.abastecimento-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.abastecimento-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 15px;
+}
+
+.abastecimento-details b {
+    color: #ccc;
+}
+
 .maintenance-card {
     background: var(--card-bg);
     border-left: 4px solid var(--primary-color);
