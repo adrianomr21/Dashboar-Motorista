@@ -299,17 +299,32 @@ function setupAbastecimento() {
     const litersInput = document.getElementById('abs-litros');
 
     const updateLiters = () => {
-        const total = parseFloat(totalInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
+        const total = parseFloat(totalInput.value.replace(',', '.')) || 0;
+        const price = parseFloat(priceInput.value.replace(',', '.')) || 0;
         if (price > 0) {
-            litersInput.value = (total / price).toFixed(2) + ' L';
+            litersInput.value = (total / price).toFixed(2).replace('.', ',') + ' L';
         } else {
             litersInput.value = '0,00 L';
         }
     };
 
-    totalInput.oninput = updateLiters;
-    priceInput.oninput = updateLiters;
+    const applyMask = (input, decimals) => {
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                updateLiters();
+                return;
+            }
+            const divisor = Math.pow(10, decimals);
+            value = (parseInt(value) / divisor).toFixed(decimals);
+            e.target.value = value.replace('.', ',');
+            updateLiters();
+        });
+    };
+
+    applyMask(totalInput, 2);
+    applyMask(priceInput, 2);
 
     document.getElementById('btnAddAbastecimento').onclick = () => openAbastecimentoModal();
     document.getElementById('closeAbastecimentoBtn').onclick = () => closeAbastecimentoModal();
@@ -329,13 +344,14 @@ function openAbastecimentoModal(data = null) {
     if (data) {
         document.getElementById('abs-id').value = data.id;
         document.getElementById('abs-data').value = data.data;
-        document.getElementById('abs-valor-total').value = data.valor_total;
-        document.getElementById('abs-preco-litro').value = data.preco_litro;
-        document.getElementById('abs-litros').value = (data.valor_total / data.preco_litro).toFixed(2) + ' L';
+        document.getElementById('abs-valor-total').value = data.valor_total.toFixed(2).replace('.', ',');
+        document.getElementById('abs-preco-litro').value = data.preco_litro.toFixed(2).replace('.', ',');
+        document.getElementById('abs-litros').value = (data.valor_total / data.preco_litro).toFixed(2).replace('.', ',') + ' L';
         document.querySelector('#modal-abastecimento h3').textContent = '⛽ Editar Abastecimento';
     } else {
         document.getElementById('abs-id').value = '';
         document.getElementById('abs-data').value = getLocalDate();
+        document.getElementById('abs-litros').value = '0,00 L';
         document.querySelector('#modal-abastecimento h3').textContent = '⛽ Registrar Abastecimento';
     }
     
@@ -349,10 +365,13 @@ function closeAbastecimentoModal() {
 async function saveAbastecimento() {
     showLoader(true, 'Salvando abastecimento...');
     const id = document.getElementById('abs-id').value;
+    const totalVal = parseFloat(document.getElementById('abs-valor-total').value.replace(',', '.')) || 0;
+    const precoVal = parseFloat(document.getElementById('abs-preco-litro').value.replace(',', '.')) || 0;
+
     const data = {
         data: document.getElementById('abs-data').value,
-        valor_total: parseFloat(document.getElementById('abs-valor-total').value) || 0,
-        preco_litro: parseFloat(document.getElementById('abs-preco-litro').value) || 0,
+        valor_total: totalVal,
+        preco_litro: precoVal,
         uid: currentUser.uid,
         timestamp: new Date()
     };
