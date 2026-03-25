@@ -675,15 +675,21 @@ async function loadDashboardData() {
 function updateDashboard(data, manuts = []) {
     const metrics = calculateDashboardMetrics(data, userConfig, manuts);
 
+    // Restaurar lógica: Restante Estimado = Arrecadado - Combustível - Variáveis
+    const restanteEstimado = metrics.ganhos - metrics.combustivel - metrics.custosVariaveisKm;
+
     // Atualizar UI
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
     document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
-    document.getElementById('lucroReal').textContent = formatCurrency(metrics.lucroReal);
+    document.getElementById('lucroReal').textContent = formatCurrency(restanteEstimado); // ID permanece lucroReal por compatibilidade
     document.getElementById('totalHoras').textContent = formatDecimalHours(metrics.horas);
     document.getElementById('totalDias').textContent = metrics.totalDias;
+
+    // Estilo do card Restante Estimado
+    document.getElementById('lucroReal').style.color = restanteEstimado >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
 
     updateDistributionBar(metrics);
     renderCharts(data);
@@ -691,51 +697,64 @@ function updateDashboard(data, manuts = []) {
 }
 
 function updateDistributionBar(metrics) {
-    const total = metrics.ganhos || 0;
+    const totalArrecadado = metrics.ganhos || 0;
     
-    // Cálculo de custos fixos proporcional aos dias trabalhados no período
-    const custosFixosPeriodo = (metrics.custosFixosMensais / (userConfig.diasTrabalhadosMes || 24)) * metrics.totalDias;
-    const lucro = Math.max(0, total - metrics.combustivel - metrics.custosVariaveisKm - custosFixosPeriodo);
+    // 1. Custos Totais Conforme Configuração (Meta a ser batida)
+    const custoFixoConfig = (userConfig.fixoParcela || 0) + 
+                            (userConfig.fixoIpva || 0) + 
+                            (userConfig.fixoSeguro || 0) + 
+                            (userConfig.fixoManutencao || 0);
+    
+    const custoGasolinaReal = metrics.combustivel || 0;
+    const custoVariavelReal = metrics.custosVariaveisKm || 0;
+    
+    // Meta de Faturamento = (Soma dos Custos) / (1 - Margem de Lucro Alvo)
+    // Isso define o tamanho total da barra (100%)
+    const margemLucroAlvo = (userConfig.lucroAlvo || 30) / 100;
+    const custosTotais = custoGasolinaReal + custoVariavelReal + custoFixoConfig;
+    const metaFaturamento = margemLucroAlvo < 1 ? custosTotais / (1 - margemLucroAlvo) : custosTotais * 1.5;
+    const lucroAlvoValor = Math.max(0, metaFaturamento - custosTotais);
 
-    // Valores padrão para evitar NaN se o total for 0
-    let segments = { fuel: 0, variable: 0, fixed: 0, profit: 0 };
-
-    if (total > 0) {
-        segments = {
-            fuel: (metrics.combustivel / total) * 100,
-            variable: (metrics.custosVariaveisKm / total) * 100,
-            fixed: (custosFixosPeriodo / total) * 100,
-            profit: (lucro / total) * 100
-        };
-
-        // Ajuste se a soma ultrapassar 100% (em caso de prejuízo onde lucro é 0)
-        const sum = segments.fuel + segments.variable + segments.fixed + segments.profit;
-        if (sum > 100) {
-            const factor = 100 / sum;
-            segments.fuel *= factor;
-            segments.variable *= factor;
-            segments.fixed *= factor;
-            segments.profit = 0;
-        }
-    }
-
-    // Atualizar Barras com largura mínima para garantir visibilidade se houver valor
+    // 2. LARGURAS DAS ESTRUTURAS (As bordas que demarcam os limites)
     const setWidth = (id, val) => {
         const el = document.getElementById(id);
-        el.style.width = `${val}%`;
-        el.style.minWidth = (val > 0 && val < 2) ? '2px' : '0'; 
+        if (el) el.style.width = `${val}%`;
     };
 
-    setWidth('dist-bar-fuel', segments.fuel);
-    setWidth('dist-bar-variable', segments.variable);
-    setWidth('dist-bar-fixed', segments.fixed);
-    setWidth('dist-bar-profit', segments.profit);
+    if (metaFaturamento > 0) {
+        setWidth('dist-bar-fuel', (custoGasolinaReal / metaFaturamento) * 100);
+        setWidth('dist-bar-variable', (custoVariavelReal / metaFaturamento) * 100);
+        setWidth('dist-bar-fixed', (custoFixoConfig / metaFaturamento) * 100);
+        setWidth('dist-bar-profit', (lucroAlvoValor / metaFaturamento) * 100);
 
-    // Atualizar Labels
-    document.getElementById('label-fuel').innerHTML = `<i class="dot fuel"></i> Gasolina: ${formatCurrency(metrics.combustivel)}`;
-    document.getElementById('label-variable').innerHTML = `<i class="dot variable"></i> Variáveis: ${formatCurrency(metrics.custosVariaveisKm)}`;
-    document.getElementById('label-fixed').innerHTML = `<i class="dot fixed"></i> Fixos: ${formatCurrency(custosFixosPeriodo)}`;
-    document.getElementById('label-profit').innerHTML = `<i class="dot profit"></i> Lucro: ${formatCurrency(lucro)}`;
+        // 3. PREENCHIMENTO REAL (O dinheiro que entrou)
+        let saldo = totalArrecadado;
+        const getFill = (metaDoBloco) => {
+            if (saldo <= 0) return 0;
+            if (metaDoBloco <= 0) return 100;
+            const preenchimento = Math.min(100, (saldo / metaDoBloco) * 100);
+            saldo -= metaDoBloco;
+            return preenchimento;
+        };
+
+        const fFuel = getFill(custoGasolinaReal);
+        const fVar = getFill(custoVariavelReal);
+        const fFix = getFill(custoFixoConfig);
+        const fProfit = getFill(lucroAlvoValor);
+
+        document.getElementById('dist-bar-fuel').style.setProperty('--fill-percent', `${fFuel}%`);
+        document.getElementById('dist-bar-variable').style.setProperty('--fill-percent', `${fVar}%`);
+        document.getElementById('dist-bar-fixed').style.setProperty('--fill-percent', `${fFix}%`);
+        document.getElementById('dist-bar-profit').style.setProperty('--fill-percent', `${fProfit}%`);
+    }
+
+    // 4. LABELS (Lucro Real só aparece se saldo > 0 após pagar TUDO)
+    const lucroRealFinal = Math.max(0, totalArrecadado - (custoGasolinaReal + custoVariavelReal + custoFixoConfig));
+    
+    document.getElementById('label-fuel').innerHTML = `<i class="dot fuel"></i> Gasolina: ${formatCurrency(custoGasolinaReal)}`;
+    document.getElementById('label-variable').innerHTML = `<i class="dot variable"></i> Variáveis: ${formatCurrency(custoVariavelReal)}`;
+    document.getElementById('label-fixed').innerHTML = `<i class="dot fixed"></i> Fixo Meta: ${formatCurrency(custoFixoConfig)}`;
+    document.getElementById('label-profit').innerHTML = `<i class="dot profit"></i> Lucro Real: ${formatCurrency(lucroRealFinal)}`;
 }
 
 function renderHistoryTable(data, manuts = []) {
