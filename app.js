@@ -510,7 +510,8 @@ function updateDayOfWeek() {
 function saveFormCache() {
     const formData = {};
     document.querySelectorAll('#form-cadastro [id^="field-"]').forEach(field => {
-        if (field.id !== 'field-data') {
+        // Exclui campos que não devem ser salvos no cache (conforme solicitado pelo usuário)
+        if (field.id !== 'field-data' && field.id !== 'field-hora-inicio' && field.id !== 'field-turno') {
             formData[field.id] = field.value;
         }
     });
@@ -523,7 +524,8 @@ function loadFormCache() {
         const data = JSON.parse(cached);
         Object.keys(data).forEach(id => {
             const el = document.getElementById(id);
-            if (el && id !== 'field-data' && id !== 'field-id') { 
+            // Também garante que não carregue se por acaso ainda estiver no cache antigo
+            if (el && id !== 'field-data' && id !== 'field-id' && id !== 'field-hora-inicio' && id !== 'field-turno') { 
                 el.value = data[id];
             }
         });
@@ -595,16 +597,16 @@ function resetCadastroForm() {
     document.getElementById('saveBtn').textContent = 'Salvar';
     document.getElementById('cancelEditBtn').style.display = 'none';
 
-    // Se houver um registro anterior, pré-preenche os campos (exceto data e dia)
+    // Se houver um registro anterior, pré-preenche alguns campos (conforme solicitado, hora e turno não são mais recuperados)
     if (lastEntry) {
         const data = JSON.parse(lastEntry);
         document.getElementById('field-km-inicial').value = data.km_final || '';
         document.getElementById('field-km-final').value = '';
         document.getElementById('field-dinheiro').value = '';
-        document.getElementById('field-hora-inicio').value = data.hora_fim || getCurrentTime();
+        document.getElementById('field-hora-inicio').value = getCurrentTime(); // Sempre atual
         document.getElementById('field-hora-fim').value = '';
         document.getElementById('display-horas-total').value = '0:00';
-        document.getElementById('field-turno').value = data.turno || 'Manhã';
+        document.getElementById('field-turno').value = 'Manhã'; // Reset para padrão
         document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
         document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
         document.getElementById('field-app').value = data.app || 'Uber';
@@ -614,6 +616,7 @@ function resetCadastroForm() {
     } else {
         document.getElementById('field-hora-inicio').value = getCurrentTime();
         document.getElementById('display-horas-total').value = '0:00';
+        document.getElementById('field-turno').value = 'Manhã';
     }
     
     // Data e Dia da Semana sempre atuais
