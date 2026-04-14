@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, getDocs, orderBy, where, doc, getDoc, setDoc, updateDoc, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     DEFAULT_CONFIG, 
     formatCurrency, getDayOfWeek, calculateKmTotal, 
@@ -23,6 +23,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Configura persistência local para a sessão durar mais
+setPersistence(auth, browserLocalPersistence)
+    .catch((error) => console.error("Erro ao configurar persistência:", error));
 
 let charts = {};
 let currentUser = null;
@@ -52,6 +56,8 @@ const mainHeader = document.getElementById('main-header');
 
 // Inicialização do App
 document.addEventListener('DOMContentLoaded', () => {
+    // Mostra loader inicial enquanto verifica auth
+    showLoader(true, 'Verificando sessão...');
     setupAuthListener();
     registerServiceWorker();
     setupPWAInstall();
@@ -60,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupAuthListener() {
     onAuthStateChanged(auth, (user) => {
+        showLoader(false);
         if (user) {
             currentUser = user;
             showApp(true);
