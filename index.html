@@ -45,6 +45,23 @@
         <!-- Preenchido via JS -->
     </div>
 
+    <section id="global-filters" class="section" style="display: none; margin-bottom: 0; padding-bottom: 0;">
+        <div class="card filter-card">
+            <h3>📅 Filtro por Período</h3>
+            <div class="filter-controls">
+                <div class="input-group">
+                    <label for="startDate">Início:</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="input-group">
+                    <label for="endDate">Fim:</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button id="updateBtn">Atualizar</button>
+            </div>
+        </div>
+    </section>
+
     <main>
         <!-- SEÇÃO DE LOGIN -->
         <section id="section-login" class="section">
@@ -213,23 +230,6 @@
 
         <!-- SEÇÃO DE DASHBOARD -->
         <section id="section-dashboard" class="section" style="display: none;">
-            <section id="filters">
-                <div class="card filter-card">
-                    <h3>📅 Filtro por Período</h3>
-                    <div class="filter-controls">
-                        <div class="input-group">
-                            <label for="startDate">Início:</label>
-                            <input type="date" id="startDate">
-                        </div>
-                        <div class="input-group">
-                            <label for="endDate">Fim:</label>
-                            <input type="date" id="endDate">
-                        </div>
-                        <button id="updateBtn">Atualizar</button>
-                    </div>
-                </div>
-            </section>
-
             <section id="indicators" class="indicator-grid">
                 <div class="card indicator">
                     <p>💰 Arrecadado</p>
@@ -238,6 +238,10 @@
                 <div class="card indicator">
                     <p>⛽ Gasto Estimado</p>
                     <h2 id="totalCombustivel">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>⛽ Abastecimento</p>
+                    <h2 id="totalAbastecimentoReal">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
                     <p>🚗 KM Rodados</p>

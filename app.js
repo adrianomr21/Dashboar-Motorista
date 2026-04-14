@@ -27,6 +27,7 @@ const auth = getAuth(app);
 let charts = {};
 let currentUser = null;
 let userConfig = DEFAULT_CONFIG;
+let currentTab = 'cadastro';
 const CACHE_KEY = 'driver_dash_form_cache';
 const LAST_ENTRY_KEY = 'driver_dash_last_entry';
 
@@ -74,6 +75,7 @@ function setupAuthListener() {
 
 function showApp(isLoggedIn) {
     mainHeader.style.display = isLoggedIn ? 'block' : 'none';
+    const globalFilters = document.getElementById('global-filters');
     
     // Esconde absolutamente tudo primeiro
     Object.values(sections).forEach(section => {
@@ -81,9 +83,10 @@ function showApp(isLoggedIn) {
     });
 
     if (isLoggedIn) {
-        switchTab('cadastro');
+        switchTab('cadastro'); // Isso já deve esconder o filtro se não for dashboard/abastecimento
     } else {
         sections.login.style.display = 'block';
+        if (globalFilters) globalFilters.style.display = 'none';
     }
 }
 
@@ -167,7 +170,10 @@ function initApp() {
     loadUserConfig();
     setupAbastecimento();
     
-    document.getElementById('updateBtn').onclick = () => loadDashboardData();
+    document.getElementById('updateBtn').onclick = () => {
+        if (currentTab === 'dashboard') loadDashboardData();
+        if (currentTab === 'abastecimento') loadAbastecimentos();
+    };
     document.getElementById('logoutBtn').onclick = () => handleLogout();
     document.getElementById('field-data').onchange = updateDayOfWeek;
     document.getElementById('form-config').onsubmit = (e) => saveUserConfig(e);
@@ -212,7 +218,7 @@ async function loadUserConfig() {
         }
         fillConfigForm();
         await loadManutencoes(); // Aguarda manutenções carregarem
-        await loadAbastecimentos(); // Carrega abastecimentos
+        await loadAbastecimentos(); // Carrega abastecimentos (usa datas default inicial)
         checkMaintenanceAlerts(); // Agora checa os alertas
     } catch (e) {
         console.error("Erro ao carregar configs:", e);
@@ -281,6 +287,7 @@ function setupNavigation() {
 }
 
 function switchTab(target) {
+    currentTab = target;
     Object.keys(sections).forEach(key => {
         if (sections[key]) {
             sections[key].style.display = key === target ? 'block' : 'none';
@@ -289,6 +296,14 @@ function switchTab(target) {
             tabs[key].classList.toggle('active', key === target);
         }
     });
+
+    // Mostra filtros globais apenas no Dashboard e Abastecimento
+    const globalFilters = document.getElementById('global-filters');
+    if (target === 'dashboard' || target === 'abastecimento') {
+        globalFilters.style.display = 'block';
+    } else {
+        globalFilters.style.display = 'none';
+    }
 }
 
 // Lógica de Abastecimento
@@ -394,10 +409,16 @@ async function saveAbastecimento() {
 
 async function loadAbastecimentos() {
     if (!currentUser) return;
+    showLoader(true, 'Buscando abastecimentos...');
     try {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+
         const q = query(
             collection(db, "abastecimentos"),
             where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end),
             orderBy("data", "desc")
         );
         const querySnapshot = await getDocs(q);
@@ -408,6 +429,8 @@ async function loadAbastecimentos() {
         renderAbastecimentoCards(abastecimentos);
     } catch (e) {
         console.error("Erro ao carregar abastecimentos:", e);
+    } finally {
+        showLoader(false);
     }
 }
 
@@ -630,8 +653,11 @@ const FILTER_START_DATE_KEY = 'driver_dash_filter_start';
 
 function setupDateFilters() {
     const savedStart = localStorage.getItem(FILTER_START_DATE_KEY);
-    document.getElementById('startDate').value = savedStart || getFirstDayOfMonth();
-    document.getElementById('endDate').value = getLocalDate();
+    const start = savedStart || getFirstDayOfMonth();
+    const end = getLocalDate();
+
+    document.getElementById('startDate').value = start;
+    document.getElementById('endDate').value = end;
 }
 
 async function loadDashboardData() {
@@ -650,6 +676,7 @@ async function loadDashboardData() {
             where("data", "<=", end),
             orderBy("data", "asc")
         );
+// ... resto da função loadDashboardData permanece igual ...
 
         const querySnapshot = await getDocs(q);
         const data = [];
@@ -665,7 +692,20 @@ async function loadDashboardData() {
         const manuts = [];
         manutSnap.forEach(d => manuts.push(d.data()));
 
-        updateDashboard(data, manuts);
+        // Buscar abastecimentos reais para o novo indicador do dashboard
+        const qAbs = query(
+            collection(db, "abastecimentos"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end)
+        );
+        const absSnap = await getDocs(qAbs);
+        let totalAbsReal = 0;
+        absSnap.forEach(d => {
+            totalAbsReal += parseFloat(d.data().valor_total) || 0;
+        });
+
+        updateDashboard(data, manuts, totalAbsReal);
         checkMaintenanceAlerts();
     } catch (e) {
         console.error("Erro ao carregar: ", e);
@@ -675,7 +715,7 @@ async function loadDashboardData() {
     }
 }
 
-function updateDashboard(data, manuts = []) {
+function updateDashboard(data, manuts = [], totalAbsReal = 0) {
     const metrics = calculateDashboardMetrics(data, userConfig, manuts);
 
     // Restaurar lógica: Restante Estimado = Arrecadado - Combustível - Variáveis
@@ -684,6 +724,7 @@ function updateDashboard(data, manuts = []) {
     // Atualizar UI
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
     document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
+    document.getElementById('totalAbastecimentoReal').textContent = formatCurrency(totalAbsReal);
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
