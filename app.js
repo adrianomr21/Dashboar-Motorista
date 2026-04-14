@@ -312,14 +312,30 @@ function setupAbastecimento() {
     const totalInput = document.getElementById('abs-valor-total');
     const priceInput = document.getElementById('abs-preco-litro');
     const litersInput = document.getElementById('abs-litros');
+    const kmAnteriorInput = document.getElementById('abs-km-anterior');
+    const kmAtualInput = document.getElementById('abs-km-atual');
+    const consumoInput = document.getElementById('abs-consumo-kml');
 
-    const updateLiters = () => {
+    const updateCalculations = () => {
         const total = parseFloat(totalInput.value.replace(',', '.')) || 0;
         const price = parseFloat(priceInput.value.replace(',', '.')) || 0;
+        const kmAnt = parseFloat(kmAnteriorInput.value) || 0;
+        const kmAtu = parseFloat(kmAtualInput.value) || 0;
+        
+        let litros = 0;
         if (price > 0) {
-            litersInput.value = (total / price).toFixed(2).replace('.', ',') + ' L';
+            litros = total / price;
+            litersInput.value = litros.toFixed(2).replace('.', ',') + ' L';
         } else {
             litersInput.value = '0,00 L';
+        }
+
+        if (litros > 0 && kmAtu > kmAnt) {
+            const dist = kmAtu - kmAnt;
+            const kml = dist / litros;
+            consumoInput.value = kml.toFixed(1).replace('.', ',') + ' KM/L';
+        } else {
+            consumoInput.value = '0,0';
         }
     };
 
@@ -328,18 +344,20 @@ function setupAbastecimento() {
             let value = e.target.value.replace(/\D/g, '');
             if (value === '') {
                 e.target.value = '';
-                updateLiters();
+                updateCalculations();
                 return;
             }
             const divisor = Math.pow(10, decimals);
             value = (parseInt(value) / divisor).toFixed(decimals);
             e.target.value = value.replace('.', ',');
-            updateLiters();
+            updateCalculations();
         });
     };
 
     applyMask(totalInput, 2);
     applyMask(priceInput, 2);
+    kmAnteriorInput.addEventListener('input', updateCalculations);
+    kmAtualInput.addEventListener('input', updateCalculations);
 
     document.getElementById('btnAddAbastecimento').onclick = () => openAbastecimentoModal();
     document.getElementById('closeAbastecimentoBtn').onclick = () => closeAbastecimentoModal();
@@ -351,7 +369,7 @@ function setupAbastecimento() {
     };
 }
 
-function openAbastecimentoModal(data = null) {
+async function openAbastecimentoModal(data = null) {
     const modal = document.getElementById('modal-abastecimento');
     const form = document.getElementById('form-abastecimento');
     form.reset();
@@ -359,15 +377,53 @@ function openAbastecimentoModal(data = null) {
     if (data) {
         document.getElementById('abs-id').value = data.id;
         document.getElementById('abs-data').value = data.data;
+        document.getElementById('abs-km-anterior').value = data.km_anterior || 0;
+        document.getElementById('abs-km-atual').value = data.km_atual || 0;
         document.getElementById('abs-valor-total').value = data.valor_total.toFixed(2).replace('.', ',');
         document.getElementById('abs-preco-litro').value = data.preco_litro.toFixed(2).replace('.', ',');
-        document.getElementById('abs-litros').value = (data.valor_total / data.preco_litro).toFixed(2).replace('.', ',') + ' L';
+        
+        const litros = data.valor_total / data.preco_litro;
+        document.getElementById('abs-litros').value = litros.toFixed(2).replace('.', ',') + ' L';
+        
+        if (litros > 0 && data.km_atual > data.km_anterior) {
+            const kml = (data.km_atual - data.km_anterior) / litros;
+            document.getElementById('abs-consumo-kml').value = kml.toFixed(1).replace('.', ',') + ' KM/L';
+        } else {
+            document.getElementById('abs-consumo-kml').value = '0,0';
+        }
+        
         document.querySelector('#modal-abastecimento h3').textContent = '⛽ Editar Abastecimento';
     } else {
         document.getElementById('abs-id').value = '';
         document.getElementById('abs-data').value = getLocalDate();
         document.getElementById('abs-litros').value = '0,00 L';
+        document.getElementById('abs-consumo-kml').value = '0,0';
         document.querySelector('#modal-abastecimento h3').textContent = '⛽ Registrar Abastecimento';
+        
+        // Busca o último KM registrado
+        showLoader(true, 'Buscando KM anterior...');
+        try {
+            // Verifica maior KM em registros de viagens
+            const qReg = query(collection(db, "registros"), where("uid", "==", currentUser.uid), orderBy("km_final", "desc"), limit(1));
+            const snapReg = await getDocs(qReg);
+            let lastKm = 0;
+            if (!snapReg.empty) lastKm = snapReg.docs[0].data().km_final || 0;
+
+            // Verifica maior KM em abastecimentos
+            const qAbs = query(collection(db, "abastecimentos"), where("uid", "==", currentUser.uid), orderBy("km_atual", "desc"), limit(1));
+            const snapAbs = await getDocs(qAbs);
+            if (!snapAbs.empty) {
+                const absKm = snapAbs.docs[0].data().km_atual || 0;
+                if (absKm > lastKm) lastKm = absKm;
+            }
+
+            document.getElementById('abs-km-anterior').value = lastKm;
+            document.getElementById('abs-km-atual').value = '';
+        } catch (e) {
+            console.error("Erro ao buscar último KM:", e);
+        } finally {
+            showLoader(false);
+        }
     }
     
     modal.style.display = 'flex';
@@ -382,11 +438,15 @@ async function saveAbastecimento() {
     const id = document.getElementById('abs-id').value;
     const totalVal = parseFloat(document.getElementById('abs-valor-total').value.replace(',', '.')) || 0;
     const precoVal = parseFloat(document.getElementById('abs-preco-litro').value.replace(',', '.')) || 0;
+    const kmAnt = parseFloat(document.getElementById('abs-km-anterior').value) || 0;
+    const kmAtu = parseFloat(document.getElementById('abs-km-atual').value) || 0;
 
     const data = {
         data: document.getElementById('abs-data').value,
         valor_total: totalVal,
         preco_litro: precoVal,
+        km_anterior: kmAnt,
+        km_atual: kmAtu,
         uid: currentUser.uid,
         timestamp: new Date()
     };
@@ -399,6 +459,7 @@ async function saveAbastecimento() {
         }
         closeAbastecimentoModal();
         await loadAbastecimentos();
+        if (currentTab === 'dashboard') loadDashboardData(); // Atualiza dashboard se estiver lá
     } catch (e) {
         console.error("Erro ao salvar abastecimento:", e);
         alert('Erro ao salvar abastecimento.');
@@ -440,6 +501,9 @@ function renderAbastecimentoCards(data) {
 
     data.forEach(item => {
         const litros = item.valor_total / item.preco_litro;
+        const dist = (item.km_atual && item.km_anterior) ? (item.km_atual - item.km_anterior) : 0;
+        const kml = (litros > 0 && dist > 0) ? (dist / litros) : 0;
+
         const card = document.createElement('div');
         card.className = 'abastecimento-card';
         card.innerHTML = `
@@ -450,9 +514,11 @@ function renderAbastecimentoCards(data) {
             <div class="abastecimento-details">
                 <div>Preço/L: <b>${formatCurrency(item.preco_litro)}</b></div>
                 <div>Litros: <b>${litros.toFixed(2)} L</b></div>
+                <div>KM: <b>${item.km_anterior} → ${item.km_atual}</b></div>
+                <div>Consumo: <b style="color: var(--success-color)">${kml > 0 ? kml.toFixed(1) + ' KM/L' : '--'}</b></div>
             </div>
             <div class="card-actions">
-                <button class="btn-edit-abs btn-small" style="background: var(--accent-color); color: white;">Editar</button>
+                <button class="btn-edit-abs btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">Editar</button>
                 <button class="btn-del-abs btn-small btn-delete">Excluir</button>
             </div>
         `;

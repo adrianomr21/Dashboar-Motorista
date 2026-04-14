@@ -439,6 +439,14 @@
                         <input type="date" id="abs-data" required>
                     </div>
                     <div class="input-group">
+                        <label>KM Anterior</label>
+                        <input type="number" id="abs-km-anterior" required placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label>KM Atual</label>
+                        <input type="number" id="abs-km-atual" required placeholder="0">
+                    </div>
+                    <div class="input-group">
                         <label>Valor Total (R$)</label>
                         <input type="tel" id="abs-valor-total" inputmode="numeric" required placeholder="0,00">
                     </div>
@@ -447,8 +455,12 @@
                         <input type="tel" id="abs-preco-litro" inputmode="numeric" required placeholder="0,00">
                     </div>
                     <div class="input-group">
+                        <label>Consumo (KM/L)</label>
+                        <input type="text" id="abs-consumo-kml" readonly placeholder="0,0" style="background: #2a2a2a; color: var(--success-color); font-weight: bold; text-align: center;">
+                    </div>
+                    <div class="input-group full-width">
                         <label>Litros Calculados</label>
-                        <input type="text" id="abs-litros" readonly placeholder="0,00" style="background: #2a2a2a; color: var(--primary-color); font-weight: bold; text-align: center;">
+                        <input type="text" id="abs-litros" readonly placeholder="0,00 L" style="background: #2a2a2a; color: var(--primary-color); font-weight: bold; text-align: center;">
                     </div>
                     <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
                         <button type="submit" id="saveAbsBtn" class="primary-btn" style="flex: 1;">Salvar</button>
