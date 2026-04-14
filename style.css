@@ -19,48 +19,54 @@
 body {
   background-color: var(--bg-color);
   color: var(--text-color);
-  line-height: 1.6;
-  padding: 10px;
+  line-height: 1.4;
+  padding: 8px;
 }
 
 header {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   text-align: center;
 }
 
 .header-content {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
   max-width: 1000px;
   margin: 0 auto;
-  gap: 15px;
+  gap: 10px;
 }
 
 .nav-tabs {
   display: flex;
-  background: #333;
-  padding: 5px;
+  background: #252525;
+  padding: 3px;
   border-radius: 8px;
-  gap: 5px;
+  gap: 3px;
+  width: 100%;
 }
 
 .tab-btn {
   background: transparent;
   border: none;
   color: #888;
-  padding: 8px 15px;
+  padding: 10px 5px;
   cursor: pointer;
   border-radius: 6px;
   font-weight: bold;
   transition: all 0.2s;
   display: flex;
+  flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  font-size: 0.75rem;
+  gap: 2px;
 }
 
 .tab-icon {
-  display: none;
+  display: inline-block;
+  font-size: 1.2rem;
 }
 
 .tab-btn.active {
@@ -70,7 +76,8 @@ header {
 
 h1 {
   color: var(--primary-color);
-  font-size: 1.5rem;
+  font-size: 1.3rem;
+  margin-bottom: 5px;
 }
 
 #installBtn {
@@ -79,21 +86,21 @@ h1 {
   border-radius: 5px;
   color: var(--primary-color);
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-weight: bold;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .section {
   max-width: 1000px;
-  margin: 0 auto 20px;
+  margin: 0 auto 10px;
 }
 
 /* Form Styles */
 .grid-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 .full-width {
@@ -101,23 +108,23 @@ h1 {
 }
 
 .form-group-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: bold;
   color: var(--primary-color);
-  margin-top: 15px;
-  padding-bottom: 5px;
+  margin-top: 10px;
+  padding-bottom: 3px;
   border-bottom: 1px solid #333;
   grid-column: 1 / -1;
 }
 
 input, select, textarea {
-  background: #333;
+  background: #2a2a2a;
   border: 1px solid #444;
   color: #fff;
   padding: 10px;
   border-radius: 6px;
   width: 100%;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -130,12 +137,12 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--primary-color);
   color: #000;
   border: none;
-  padding: 15px;
+  padding: 12px;
   border-radius: 8px;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 5px;
 }
 
 .primary-btn:active {
@@ -144,10 +151,10 @@ input:focus, select:focus, textarea:focus {
 
 .card {
   background-color: var(--card-bg);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 12px;
   box-shadow: var(--shadow);
-  margin: 15px 0px;
+  margin: 10px 0px;
 }
 
 .filter-card h3 {
