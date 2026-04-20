@@ -304,6 +304,22 @@ function switchTab(target) {
         }
     });
 
+    // Se entrar na aba de cadastro e não estiver editando, garante data/hora atualizadas
+    if (target === 'cadastro') {
+        const id = document.getElementById('field-id').value;
+        if (!id) {
+            document.getElementById('field-data').value = getLocalDate();
+            updateDayOfWeek();
+            // A hora de início só atualiza se estiver vazia para não perder o que o usuário digitou
+            // Mas o turno pode ser recalculado
+            const startField = document.getElementById('field-hora-inicio');
+            if (!startField.value) {
+                startField.value = getCurrentTime();
+            }
+            refreshDefaultTurno();
+        }
+    }
+
     // Mostra filtros globais apenas no Dashboard e Abastecimento
     const globalFilters = document.getElementById('global-filters');
     if (target === 'dashboard' || target === 'abastecimento') {
@@ -311,6 +327,23 @@ function switchTab(target) {
     } else {
         globalFilters.style.display = 'none';
     }
+}
+
+/**
+ * Recalcula o turno baseado na hora atual (Fuso SP)
+ */
+function refreshDefaultTurno() {
+    const spTime = getCurrentTime();
+    const currentHour = parseInt(spTime.split(':')[0]);
+    let defaultTurno = 'Manhã';
+
+    if (currentHour >= 0 && currentHour < 6) defaultTurno = 'Madrugada';
+    else if (currentHour >= 6 && currentHour < 12) defaultTurno = 'Manhã';
+    else if (currentHour >= 12 && currentHour < 14) defaultTurno = 'Meio-dia';
+    else if (currentHour >= 14 && currentHour < 18) defaultTurno = 'Tarde';
+    else if (currentHour >= 18 && currentHour <= 23) defaultTurno = 'Noite';
+
+    document.getElementById('field-turno').value = defaultTurno;
 }
 
 // Lógica de Abastecimento
@@ -570,13 +603,14 @@ function setupForm() {
     });
 
     // Configurações Iniciais
-    if (!dateField.value) {
+    const idField = document.getElementById('field-id');
+    if (!idField.value) {
         dateField.value = getLocalDate();
         updateDayOfWeek();
-    }
-    
-    if (!startField.value) {
-        startField.value = getCurrentTime();
+        if (!startField.value) {
+            startField.value = getCurrentTime();
+        }
+        refreshDefaultTurno();
     }
 
     const updateCalculatedHours = () => {
@@ -693,16 +727,6 @@ function resetCadastroForm() {
     document.getElementById('saveBtn').textContent = 'Salvar';
     document.getElementById('cancelEditBtn').style.display = 'none';
 
-    const now = new Date();
-    const currentHour = now.getHours();
-    let defaultTurno = 'Manhã';
-
-    if (currentHour >= 0 && currentHour < 6) defaultTurno = 'Madrugada';
-    else if (currentHour >= 6 && currentHour < 12) defaultTurno = 'Manhã';
-    else if (currentHour >= 12 && currentHour < 14) defaultTurno = 'Meio-dia';
-    else if (currentHour >= 14 && currentHour < 18) defaultTurno = 'Tarde';
-    else if (currentHour >= 18 && currentHour <= 23) defaultTurno = 'Noite';
-
     // Se houver um registro anterior, pré-preenche alguns campos (conforme solicitado, hora e turno não são mais recuperados)
     if (lastEntry) {
         const data = JSON.parse(lastEntry);
@@ -712,7 +736,6 @@ function resetCadastroForm() {
         document.getElementById('field-hora-inicio').value = getCurrentTime(); // Sempre atual
         document.getElementById('field-hora-fim').value = '';
         document.getElementById('display-horas-total').value = '0:00';
-        document.getElementById('field-turno').value = defaultTurno; // Seleção automática baseada na hora
         document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
         document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
         document.getElementById('field-app').value = data.app || 'Uber';
@@ -722,12 +745,12 @@ function resetCadastroForm() {
     } else {
         document.getElementById('field-hora-inicio').value = getCurrentTime();
         document.getElementById('display-horas-total').value = '0:00';
-        document.getElementById('field-turno').value = defaultTurno;
     }
     
-    // Data e Dia da Semana sempre atuais
+    // Data, Turno e Dia da Semana sempre atuais (Fuso SP)
     document.getElementById('field-data').value = getLocalDate();
     updateDayOfWeek();
+    refreshDefaultTurno();
     saveFormCache();
 }
 
