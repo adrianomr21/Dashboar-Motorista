@@ -42,6 +42,7 @@ const sections = {
     cadastro: document.getElementById('section-cadastro'),
     dashboard: document.getElementById('section-dashboard'),
     abastecimento: document.getElementById('section-abastecimento'),
+    relatorio: document.getElementById('section-relatorio'),
     config: document.getElementById('section-config')
 };
 
@@ -49,6 +50,7 @@ const tabs = {
     cadastro: document.getElementById('tab-cadastro'),
     dashboard: document.getElementById('tab-dashboard'),
     abastecimento: document.getElementById('tab-abastecimento'),
+    relatorio: document.getElementById('tab-relatorio'),
     config: document.getElementById('tab-config')
 };
 
@@ -288,9 +290,15 @@ function setupNavigation() {
         switchTab('abastecimento');
         loadAbastecimentos();
     });
+    tabs.relatorio.addEventListener('click', () => {
+        switchTab('relatorio');
+        loadRelatorioData();
+    });
     tabs.config.addEventListener('click', () => {
         switchTab('config');
     });
+
+    document.getElementById('btnPrintRelatorio').onclick = () => window.print();
 }
 
 function switchTab(target) {
@@ -320,9 +328,9 @@ function switchTab(target) {
         }
     }
 
-    // Mostra filtros globais apenas no Dashboard e Abastecimento
+    // Mostra filtros globais apenas no Dashboard, Abastecimento e Relatório
     const globalFilters = document.getElementById('global-filters');
-    if (target === 'dashboard' || target === 'abastecimento') {
+    if (target === 'dashboard' || target === 'abastecimento' || target === 'relatorio') {
         globalFilters.style.display = 'block';
     } else {
         globalFilters.style.display = 'none';
@@ -824,8 +832,14 @@ async function loadDashboardData() {
 function updateDashboard(data, manuts = [], totalAbsReal = 0) {
     const metrics = calculateDashboardMetrics(data, userConfig, manuts);
 
-    // Restaurar lógica: Restante Estimado = Arrecadado - Combustível - Variáveis
-    const restanteEstimado = metrics.ganhos - metrics.combustivel - metrics.custosVariaveisKm;
+    // Custos Fixos Totais da Configuração
+    const custoFixoConfig = (userConfig.fixoParcela || 0) + 
+                            (userConfig.fixoIpva || 0) + 
+                            (userConfig.fixoSeguro || 0) + 
+                            (userConfig.fixoManutencao || 0);
+
+    // Lucro Real Final = Arrecadado - Combustível - Variáveis - Custos Fixos
+    const lucroRealFinal = metrics.ganhos - metrics.combustivel - metrics.custosVariaveisKm - custoFixoConfig;
 
     // Atualizar UI
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
@@ -834,12 +848,12 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
-    document.getElementById('lucroReal').textContent = formatCurrency(restanteEstimado); // ID permanece lucroReal por compatibilidade
+    document.getElementById('lucroReal').textContent = formatCurrency(lucroRealFinal); 
     document.getElementById('totalHoras').textContent = formatDecimalHours(metrics.horas);
     document.getElementById('totalDias').textContent = metrics.totalDias;
 
-    // Estilo do card Restante Estimado
-    document.getElementById('lucroReal').style.color = restanteEstimado >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    // Estilo do card Lucro Real
+    document.getElementById('lucroReal').style.color = lucroRealFinal >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
 
     updateDistributionBar(metrics);
     renderCharts(data);
@@ -1320,6 +1334,185 @@ function showLoader(show, text = 'Carregando...') {
     const loader = document.getElementById('loader');
     document.getElementById('loader-text').textContent = text;
     loader.style.display = show ? 'flex' : 'none';
+}
+
+/**
+ * Carrega e processa dados para a tela de Relatório (Cupom Único)
+ */
+async function loadRelatorioData() {
+    if (!currentUser) return;
+    showLoader(true, 'Gerando cupom fiscal...');
+    try {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+
+        const q = query(
+            collection(db, "registros"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end),
+            orderBy("data", "asc")
+        );
+        const querySnapshot = await getDocs(q);
+        const registros = [];
+        querySnapshot.forEach((doc) => registros.push(doc.data()));
+
+        // Buscar manutenções para custo variável
+        const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        const manutSnap = await getDocs(qManut);
+        const manuts = [];
+        manutSnap.forEach(d => manuts.push(d.data()));
+
+        renderSingleReceipt(registros, manuts, start, end);
+    } catch (e) {
+        console.error("Erro ao carregar relatório:", e);
+        // Fallback se orderBy falhar
+        if (e.code === 'failed-precondition' || e.message.includes('index')) {
+            try {
+                const start = document.getElementById('startDate').value;
+                const end = document.getElementById('endDate').value;
+                const qSimple = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
+                const snapSimple = await getDocs(qSimple);
+                const regsSimple = [];
+                snapSimple.forEach(doc => {
+                    const d = doc.data();
+                    if (d.data >= start && d.data <= end) regsSimple.push(d);
+                });
+                renderSingleReceipt(regsSimple, [], start, end);
+            } catch (err) {
+                alert("Erro ao carregar dados do relatório.");
+            }
+        }
+    } finally {
+        showLoader(false);
+    }
+}
+
+function renderSingleReceipt(registros, manuts, start, end) {
+    const container = document.getElementById('receipt-list');
+    container.innerHTML = '';
+
+    if (registros.length === 0) {
+        container.innerHTML = '<div class="card" style="text-align: center;">Nenhum registro encontrado para este período.</div>';
+        return;
+    }
+
+    // Totais do Período
+    let totalGanhos = 0;
+    let totalKm = 0;
+    let totalCombustivel = 0;
+    let totalVariaveis = 0;
+
+    // Custos Fixos (Aplicados uma vez para o período filtrado, conforme padrão de fechamento)
+    const fixoParcela = userConfig.fixoParcela || 0;
+    const fixoIpva = userConfig.fixoIpva || 0;
+    const fixoSeguro = userConfig.fixoSeguro || 0;
+    const fixoManut = userConfig.fixoManutencao || 0;
+    const custoFixoTotal = fixoParcela + fixoIpva + fixoSeguro + fixoManut;
+
+    registros.forEach(r => {
+        totalGanhos += r.dinheiro;
+        totalKm += r.km_total;
+        
+        const litros = r.km_total / (userConfig.consumoMedio || 10);
+        totalCombustivel += (litros * r.preco_combustivel);
+        
+        let custoManutKm = 0;
+        if (manuts.length > 0) {
+            custoManutKm = manuts.reduce((acc, m) => acc + (m.valor / m.km_total), 0);
+        } else {
+            const cRevisao = userConfig.custoRevisao / userConfig.kmRevisao || 0;
+            const cPneu = userConfig.custoPneu / userConfig.kmPneu || 0;
+            const cOleo = userConfig.custoOleo / userConfig.kmOleo || 0;
+            custoManutKm = cRevisao + cPneu + cOleo;
+        }
+        totalVariaveis += (r.km_total * custoManutKm);
+    });
+
+    const lucro = totalGanhos - totalCombustivel - totalVariaveis - custoFixoTotal;
+    const formatPeriod = (d) => d.split('-').reverse().join('/');
+
+    const receipt = document.createElement('div');
+    receipt.className = 'receipt-container';
+    receipt.innerHTML = `
+        <div class="receipt-header">
+            <h2>🚀 DRIVER DASH</h2>
+            <p>CUPOM FISCAL CONSOLIDADO</p>
+            <p>PERÍODO: ${formatPeriod(start)} A ${formatPeriod(end)}</p>
+            <p>--------------------------------</p>
+        </div>
+        
+        <div class="receipt-title">ENTRADAS</div>
+        <div class="receipt-line">
+            <span>TOTAL ARRECADADO</span>
+            <span>${formatCurrency(totalGanhos)}</span>
+        </div>
+        
+        <div class="receipt-divider"></div>
+        
+        <div class="receipt-title">SAÍDAS (VARIÁVEIS)</div>
+        <div class="receipt-line">
+            <span>GASTO COMBUSTÍVEL</span>
+            <span class="receipt-item-neg">-${formatCurrency(totalCombustivel)}</span>
+        </div>
+        <div class="receipt-line">
+            <span>GASTO VARIÁVEL (KM)</span>
+            <span class="receipt-item-neg">-${formatCurrency(totalVariaveis)}</span>
+        </div>
+        
+        <div class="receipt-divider"></div>
+        
+        <div class="receipt-title">SAÍDAS (FIXAS)</div>
+        <div class="receipt-line">
+            <span>PARCELA VEÍCULO</span>
+            <span class="receipt-item-neg">-${formatCurrency(fixoParcela)}</span>
+        </div>
+        <div class="receipt-line">
+            <span>IPVA / TAXAS</span>
+            <span class="receipt-item-neg">-${formatCurrency(fixoIpva)}</span>
+        </div>
+        <div class="receipt-line">
+            <span>SEGURO</span>
+            <span class="receipt-item-neg">-${formatCurrency(fixoSeguro)}</span>
+        </div>
+        <div class="receipt-line">
+            <span>MANUTENÇÃO FIXA</span>
+            <span class="receipt-item-neg">-${formatCurrency(fixoManut)}</span>
+        </div>
+        
+        <div class="receipt-divider"></div>
+        
+        <div class="receipt-line">
+            <span>DISTÂNCIA TOTAL</span>
+            <span>${totalKm.toFixed(1)} KM</span>
+        </div>
+        <div class="receipt-line">
+            <span>EFICIÊNCIA MÉDIA</span>
+            <span>${formatCurrency(totalKm > 0 ? totalGanhos/totalKm : 0)}/KM</span>
+        </div>
+        <div class="receipt-line">
+            <span>TOTAL DE REGISTROS</span>
+            <span>${registros.length}</span>
+        </div>
+        
+        <div class="receipt-total">
+            <span>LUCRO REAL</span>
+            <span style="color: ${lucro >= 0 ? '#000' : '#c00'}">${formatCurrency(lucro)}</span>
+        </div>
+        
+        <div class="receipt-footer">
+            <p>GERADO EM: ${new Date().toLocaleString('pt-BR')}</p>
+            <p>OBRIGADO POR DIRIGIR!</p>
+            <p>--------------------------------</p>
+        </div>
+    `;
+    container.appendChild(receipt);
+}
+
+// Remover funções antigas que não são mais usadas
+function renderRelatorioApps(registros) {
+    // Pode ser mantida se você quiser o resumo por app abaixo do cupom,
+    // mas por enquanto vou deixar desativado para o visual de "apenas 1 recibo".
 }
 
 // PWA e Service Worker

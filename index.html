@@ -29,6 +29,10 @@
                     <span class="tab-text">Abastecimentos</span>
                     <span class="tab-icon">⛽</span>
                 </button>
+                <button id="tab-relatorio" class="tab-btn">
+                    <span class="tab-text">Relatório</span>
+                    <span class="tab-icon">📋</span>
+                </button>
                 <button id="tab-config" class="tab-btn">
                     <span class="tab-text">Configurações</span>
                     <span class="tab-icon">⚙️</span>
@@ -331,6 +335,17 @@
             </div>
             <div id="abastecimento-cards" class="maintenance-grid">
                 <!-- Cards serão inseridos aqui -->
+            </div>
+        </section>
+
+        <!-- SEÇÃO DE RELATÓRIO -->
+        <section id="section-relatorio" class="section" style="display: none;">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button id="btnPrintRelatorio" class="secondary-btn" style="width: auto; padding: 10px 20px;">🖨️ Imprimir Recibo</button>
+            </div>
+            
+            <div id="receipt-list">
+                <!-- Os cupons fiscais serão gerados aqui via JS -->
             </div>
         </section>
 
