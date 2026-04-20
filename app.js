@@ -1492,8 +1492,8 @@ function renderSingleReceipt(registros, manuts, start, end) {
             <span>${formatCurrency(totalKm > 0 ? totalGanhos/totalKm : 0)}/KM</span>
         </div>
         <div class="receipt-line">
-            <span>TOTAL DE REGISTROS</span>
-            <span>${registros.length}</span>
+            <span>DIAS TRABALHADOS</span>
+            <span>${new Set(registros.map(r => r.data)).size}</span>
         </div>
         
         <div class="receipt-total">
@@ -1503,7 +1503,6 @@ function renderSingleReceipt(registros, manuts, start, end) {
         
         <div class="receipt-footer">
             <p>GERADO EM: ${new Date().toLocaleString('pt-BR')}</p>
-            <p>OBRIGADO POR DIRIGIR!</p>
             <p>--------------------------------</p>
         </div>
     `;
