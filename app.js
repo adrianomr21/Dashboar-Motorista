@@ -182,6 +182,7 @@ function initApp() {
     document.getElementById('updateBtn').onclick = () => {
         if (currentTab === 'dashboard') loadDashboardData();
         if (currentTab === 'abastecimento') loadAbastecimentos();
+        if (currentTab === 'relatorio') loadRelatorioData();
     };
     document.getElementById('logoutBtn').onclick = () => handleLogout();
     document.getElementById('field-data').onchange = updateDayOfWeek;
