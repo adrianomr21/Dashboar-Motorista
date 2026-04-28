@@ -178,7 +178,8 @@ function initApp() {
     loadFormCache();
     loadUserConfig();
     setupAbastecimento();
-    
+    setupGastoGeral();
+
     document.getElementById('updateBtn').onclick = () => {
         if (currentTab === 'dashboard') loadDashboardData();
         if (currentTab === 'abastecimento') loadAbastecimentos();
@@ -195,10 +196,11 @@ function initApp() {
     window.onclick = (event) => {
         const modalDet = document.getElementById('modal-detalhes');
         const modalAbs = document.getElementById('modal-abastecimento');
+        const modalGasto = document.getElementById('modal-gasto-geral');
         if (event.target == modalDet) closeModal();
         if (event.target == modalAbs) closeAbastecimentoModal();
+        if (event.target == modalGasto) closeGastoGeralModal();
     };
-
     // Lógica de Importação
     const btnImport = document.getElementById('btnShowImport');
     const fileInput = document.getElementById('importFile');
@@ -418,6 +420,91 @@ function setupAbastecimento() {
     };
 }
 
+// Lógica de Gasto Geral (Acessórios, Manutenção, Revisão)
+function setupGastoGeral() {
+    const form = document.getElementById('form-gasto-geral');
+    const valorInput = document.getElementById('gasto-valor');
+
+    const applyMask = (input, decimals) => {
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            const divisor = Math.pow(10, decimals);
+            value = (parseInt(value) / divisor).toFixed(decimals);
+            e.target.value = value.replace('.', ',');
+        });
+    };
+
+    applyMask(valorInput, 2);
+
+    document.getElementById('btnAddGastoGeral').onclick = () => openGastoGeralModal();
+    document.getElementById('closeGastoGeralBtn').onclick = () => closeGastoGeralModal();
+    document.getElementById('closeGastoFooterBtn').onclick = () => closeGastoGeralModal();
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        await saveGastoGeral();
+    };
+}
+
+async function openGastoGeralModal(data = null) {
+    const modal = document.getElementById('modal-gasto-geral');
+    const form = document.getElementById('form-gasto-geral');
+    form.reset();
+
+    if (data) {
+        document.getElementById('gasto-id').value = data.id;
+        document.getElementById('gasto-data').value = data.data;
+        document.getElementById('gasto-tipo').value = data.tipo;
+        document.getElementById('gasto-descricao').value = data.descricao;
+        document.getElementById('gasto-valor').value = data.valor.toFixed(2).replace('.', ',');
+        document.querySelector('#modal-gasto-geral h3').textContent = '💸 Editar Gasto';
+    } else {
+        document.getElementById('gasto-id').value = '';
+        document.getElementById('gasto-data').value = getLocalDate();
+        document.querySelector('#modal-gasto-geral h3').textContent = '💸 Registrar Gasto';
+    }
+    modal.style.display = 'flex';
+}
+
+function closeGastoGeralModal() {
+    document.getElementById('modal-gasto-geral').style.display = 'none';
+}
+
+async function saveGastoGeral() {
+    showLoader(true, 'Salvando gasto...');
+    const id = document.getElementById('gasto-id').value;
+    const valorVal = parseFloat(document.getElementById('gasto-valor').value.replace(',', '.')) || 0;
+
+    const data = {
+        data: document.getElementById('gasto-data').value,
+        tipo: document.getElementById('gasto-tipo').value,
+        descricao: document.getElementById('gasto-descricao').value,
+        valor: valorVal,
+        uid: currentUser.uid,
+        timestamp: new Date()
+    };
+
+    try {
+        if (id) {
+            await updateDoc(doc(db, "gastos_gerais", id), data);
+        } else {
+            await addDoc(collection(db, "gastos_gerais"), data);
+        }
+        closeGastoGeralModal();
+        await loadAbastecimentos();
+        if (currentTab === 'dashboard') loadDashboardData();
+    } catch (e) {
+        console.error("Erro ao salvar gasto:", e);
+        alert('Erro ao salvar gasto.');
+    } finally {
+        showLoader(false);
+    }
+}
+
 async function openAbastecimentoModal(data = null) {
     const modal = document.getElementById('modal-abastecimento');
     const form = document.getElementById('form-abastecimento');
@@ -519,24 +606,42 @@ async function saveAbastecimento() {
 
 async function loadAbastecimentos() {
     if (!currentUser) return;
-    showLoader(true, 'Buscando abastecimentos...');
+    showLoader(true, 'Buscando gastos...');
     try {
         const start = document.getElementById('startDate').value;
         const end = document.getElementById('endDate').value;
 
-        const q = query(
+        // Buscar Abastecimentos
+        const qAbs = query(
             collection(db, "abastecimentos"),
             where("uid", "==", currentUser.uid),
             where("data", ">=", start),
             where("data", "<=", end),
             orderBy("data", "desc")
         );
-        const querySnapshot = await getDocs(q);
+        const absSnap = await getDocs(qAbs);
         const abastecimentos = [];
-        querySnapshot.forEach((doc) => {
-            abastecimentos.push({ id: doc.id, ...doc.data() });
+        absSnap.forEach((doc) => {
+            abastecimentos.push({ id: doc.id, collection: 'abastecimentos', ...doc.data() });
         });
-        renderAbastecimentoCards(abastecimentos);
+
+        // Buscar Gastos Gerais
+        const qGeral = query(
+            collection(db, "gastos_gerais"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end),
+            orderBy("data", "desc")
+        );
+        const geralSnap = await getDocs(qGeral);
+        const gastosGerais = [];
+        geralSnap.forEach((doc) => {
+            gastosGerais.push({ id: doc.id, collection: 'gastos_gerais', ...doc.data() });
+        });
+
+        // Combinar e ordenar por data
+        const todosGastos = [...abastecimentos, ...gastosGerais].sort((a, b) => b.data.localeCompare(a.data));
+        renderAbastecimentoCards(todosGastos);
     } catch (e) {
         console.error("Erro ao carregar abastecimentos:", e);
     } finally {
@@ -549,33 +654,69 @@ function renderAbastecimentoCards(data) {
     container.innerHTML = '';
 
     data.forEach(item => {
-        const litros = item.valor_total / item.preco_litro;
-        const dist = (item.km_atual && item.km_anterior) ? (item.km_atual - item.km_anterior) : 0;
-        const kml = (litros > 0 && dist > 0) ? (dist / litros) : 0;
-
         const card = document.createElement('div');
         card.className = 'abastecimento-card';
-        card.innerHTML = `
-            <div class="abastecimento-header">
-                <span class="abastecimento-date">${item.data.split('-').reverse().join('/')}</span>
-                <span class="abastecimento-value">${formatCurrency(item.valor_total)}</span>
-            </div>
-            <div class="abastecimento-details">
-                <div>Preço/L: <b>${formatCurrency(item.preco_litro)}</b></div>
-                <div>Litros: <b>${litros.toFixed(2)} L</b></div>
-                <div>KM: <b>${item.km_anterior} → ${item.km_atual}</b></div>
-                <div>Consumo: <b style="color: var(--success-color)">${kml > 0 ? kml.toFixed(1) + ' KM/L' : '--'}</b></div>
-            </div>
-            <div class="card-actions">
-                <button class="btn-edit-abs btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">Editar</button>
-                <button class="btn-del-abs btn-small btn-delete">Excluir</button>
-            </div>
-        `;
 
-        card.querySelector('.btn-edit-abs').onclick = () => openAbastecimentoModal(item);
-        card.querySelector('.btn-del-abs').onclick = () => deleteAbastecimento(item.id);
+        if (item.collection === 'abastecimentos') {
+            const litros = item.valor_total / item.preco_litro;
+            const dist = (item.km_atual && item.km_anterior) ? (item.km_atual - item.km_anterior) : 0;
+            const kml = (litros > 0 && dist > 0) ? (dist / litros) : 0;
+
+            card.innerHTML = `
+                <div class="abastecimento-header">
+                    <span class="abastecimento-date">${item.data.split('-').reverse().join('/')}</span>
+                    <span class="abastecimento-value" style="color: var(--primary-color)">${formatCurrency(item.valor_total)}</span>
+                </div>
+                <div class="abastecimento-details">
+                    <div style="grid-column: span 2; font-weight: bold; color: var(--success-color); margin-bottom: 5px;">⛽ Abastecimento</div>
+                    <div>Preço/L: <b>${formatCurrency(item.preco_litro)}</b></div>
+                    <div>Litros: <b>${litros.toFixed(2)} L</b></div>
+                    <div>KM: <b>${item.km_anterior} → ${item.km_atual}</b></div>
+                    <div>Consumo: <b style="color: var(--success-color)">${kml > 0 ? kml.toFixed(1) + ' KM/L' : '--'}</b></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-edit-abs btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">Editar</button>
+                    <button class="btn-del-abs btn-small btn-delete">Excluir</button>
+                </div>
+            `;
+            card.querySelector('.btn-edit-abs').onclick = () => openAbastecimentoModal(item);
+            card.querySelector('.btn-del-abs').onclick = () => deleteAbastecimento(item.id);
+        } else {
+            // Gasto Geral
+            card.innerHTML = `
+                <div class="abastecimento-header">
+                    <span class="abastecimento-date">${item.data.split('-').reverse().join('/')}</span>
+                    <span class="abastecimento-value" style="color: var(--accent-color)">${formatCurrency(item.valor)}</span>
+                </div>
+                <div class="abastecimento-details">
+                    <div style="grid-column: span 2; font-weight: bold; color: var(--accent-color); margin-bottom: 5px;">💸 ${item.tipo}</div>
+                    <div style="grid-column: span 2;">Descrição: <b>${item.descricao}</b></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-edit-gasto btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">Editar</button>
+                    <button class="btn-del-gasto btn-small btn-delete">Excluir</button>
+                </div>
+            `;
+            card.querySelector('.btn-edit-gasto').onclick = () => openGastoGeralModal(item);
+            card.querySelector('.btn-del-gasto').onclick = () => deleteGastoGeral(item.id);
+        }
+
         container.appendChild(card);
     });
+}
+
+async function deleteGastoGeral(id) {
+    if (!confirm('Deseja excluir este gasto?')) return;
+    showLoader(true, 'Excluindo...');
+    try {
+        await deleteDoc(doc(db, "gastos_gerais", id));
+        await loadAbastecimentos();
+        if (currentTab === 'dashboard') loadDashboardData();
+    } catch (e) {
+        console.error(e);
+    } finally {
+        showLoader(false);
+    }
 }
 
 async function deleteAbastecimento(id) {
@@ -818,6 +959,18 @@ async function loadDashboardData() {
         let totalAbsReal = 0;
         absSnap.forEach(d => {
             totalAbsReal += parseFloat(d.data().valor_total) || 0;
+        });
+
+        // Buscar gastos gerais reais
+        const qGeral = query(
+            collection(db, "gastos_gerais"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end)
+        );
+        const geralSnap = await getDocs(qGeral);
+        geralSnap.forEach(d => {
+            totalAbsReal += parseFloat(d.data().valor) || 0;
         });
 
         updateDashboard(data, manuts, totalAbsReal);

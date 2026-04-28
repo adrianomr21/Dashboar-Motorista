@@ -26,8 +26,8 @@
                     <span class="tab-icon">📈</span>
                 </button>
                 <button id="tab-abastecimento" class="tab-btn">
-                    <span class="tab-text">Abastecimentos</span>
-                    <span class="tab-icon">⛽</span>
+                    <span class="tab-text">Gastos</span>
+                    <span class="tab-icon">💸</span>
                 </button>
                 <button id="tab-relatorio" class="tab-btn">
                     <span class="tab-text">Relatório</span>
@@ -245,7 +245,7 @@
                     <h2 id="totalCombustivel">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
-                    <p>⛽ Abastecimento</p>
+                    <p>💸 Gastos Reais</p>
                     <h2 id="totalAbastecimentoReal">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
@@ -327,11 +327,14 @@
             </section>
         </section>
 
-        <!-- SEÇÃO DE ABASTECIMENTOS -->
+        <!-- SEÇÃO DE GASTOS -->
         <section id="section-abastecimento" class="section" style="display: none;">
             <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin-bottom: 0;">⛽ Meus Abastecimentos</h3>
-                <button id="btnAddAbastecimento" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0;">+ Novo</button>
+                <h3 style="margin-bottom: 0;">💸 Meus Gastos</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btnAddAbastecimento" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0;">+ Abastecimento</button>
+                    <button id="btnAddGastoGeral" class="secondary-btn" style="width: auto; padding: 10px 20px; margin-top: 0; background: var(--accent-color); color: white;">+ Novo Gasto</button>
+                </div>
             </div>
             <div id="abastecimento-cards" class="maintenance-grid">
                 <!-- Cards serão inseridos aqui -->
@@ -440,6 +443,44 @@
                 </div>
             </div>
         </section>
+
+        <!-- MODAL DE GASTO GERAL -->
+        <div id="modal-gasto-geral" class="modal-overlay" style="display: none;">
+            <div class="modal-content card">
+                <div class="modal-header">
+                    <h3>💸 Registrar Gasto</h3>
+                    <button id="closeGastoGeralBtn" class="close-btn">&times;</button>
+                </div>
+                <form id="form-gasto-geral" class="grid-form">
+                    <input type="hidden" id="gasto-id">
+                    <div class="input-group">
+                        <label>Data</label>
+                        <input type="date" id="gasto-data" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Tipo</label>
+                        <select id="gasto-tipo" required>
+                            <option value="Acessórios">Acessórios</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Revisão">Revisão</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Descrição</label>
+                        <input type="text" id="gasto-descricao" required placeholder="Ex: Troca de palheta">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Valor (R$)</label>
+                        <input type="tel" id="gasto-valor" inputmode="numeric" required placeholder="0,00">
+                    </div>
+                    <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" id="saveGastoBtn" class="primary-btn" style="flex: 1;">Salvar</button>
+                        <button type="button" id="closeGastoFooterBtn" class="secondary-btn" style="flex: 1;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- MODAL DE ABASTECIMENTO -->
         <div id="modal-abastecimento" class="modal-overlay" style="display: none;">

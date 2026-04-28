@@ -37,6 +37,14 @@ service cloud.firestore {
                     && request.resource.data.uid == request.auth.uid;
     }
 
+    // Gastos Gerais (cada documento possui um campo 'uid')
+    match /gastos_gerais/{docId} {
+      allow read, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid 
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
     // Bloqueia qualquer outro acesso por padrão
     match /{document=**} {
       allow read, write: if false;
