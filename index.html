@@ -237,11 +237,11 @@
         <section id="section-dashboard" class="section" style="display: none;">
             <section id="indicators" class="indicator-grid">
                 <div class="card indicator">
-                    <p>💰 Arrecadado</p>
+                    <p>💰 Total Arrecadado</p>
                     <h2 id="totalArrecadado">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
-                    <p>⛽ Gasto Estimado</p>
+                    <p>⛽ Combustível Gasto</p>
                     <h2 id="totalCombustivel">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
@@ -249,11 +249,15 @@
                     <h2 id="totalAbastecimentoReal">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
+                    <p>⚖️ Valor Acumulado</p>
+                    <h2 id="valorRestante">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
                     <p>🚗 KM Rodados</p>
                     <h2 id="totalKM">0 km</h2>
                 </div>
                 <div class="card indicator">
-                    <p>🔧 Gasto Est. Carro</p>
+                    <p>🔧 Desgaste do Carro</p>
                     <h2 id="gastoEstimadoCarro">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
@@ -261,11 +265,11 @@
                     <h2 id="custoMedioKM">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
-                    <p>📈 Restante Estimado</p>
+                    <p>📈 Meta Pré-definida</p>
                     <h2 id="lucroReal">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
-                    <p>⏱ Horas Totais</p>
+                    <p>⏱ Horas Trabalhadas</p>
                     <h2 id="totalHoras">0h</h2>
                 </div>
                 <div class="card indicator">
@@ -288,6 +292,18 @@
                         <span id="label-variable"><i class="dot variable"></i> Variáveis: R$ 0,00</span>
                         <span id="label-fixed"><i class="dot fixed"></i> Fixos: R$ 0,00</span>
                         <span id="label-profit"><i class="dot profit"></i> Lucro: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- RANKINGS -->
+                <div class="rankings-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <div class="card">
+                        <h3>🏆 Top 3 Dias Lucrativos</h3>
+                        <ul id="top-lucro-list" style="list-style: none; padding: 0;"></ul>
+                    </div>
+                    <div class="card">
+                        <h3>⚡ Dia com Maior KM</h3>
+                        <div id="top-km-day" style="text-align: center; padding: 20px 0;"></div>
                     </div>
                 </div>
 
@@ -315,6 +331,7 @@
                                 <th>Data</th>
                                 <th>KM</th>
                                 <th>Ganhos</th>
+                                <th>R$/km</th>
                                 <th>Lucro</th>
                                 <th>Ações</th>
                             </tr>
@@ -551,7 +568,7 @@
                         <h2 id="m-totalArrecadado">R$ 0,00</h2>
                     </div>
                     <div class="card indicator">
-                        <p>⛽ Gasto Combustível</p>
+                        <p>⛽ Combustível Gasto</p>
                         <h2 id="m-totalCombustivel">R$ 0,00</h2>
                     </div>
                     <div class="card indicator">
@@ -559,7 +576,7 @@
                         <h2 id="m-totalKM">0 km</h2>
                     </div>
                     <div class="card indicator">
-                        <p>🔧 Gasto Est. Carro</p>
+                        <p>🔧 Desgaste do Carro</p>
                         <h2 id="m-gastoEstimadoCarro">R$ 0,00</h2>
                     </div>
                     <div class="card indicator">
@@ -567,11 +584,11 @@
                         <h2 id="m-custoMedioKM">R$ 0,00</h2>
                     </div>
                     <div class="card indicator">
-                        <p>📈 Restante Estimado</p>
+                        <p>📈 Meta Estimada</p>
                         <h2 id="m-lucroReal">R$ 0,00</h2>
                     </div>
                     <div class="card indicator">
-                        <p>⏱ Horas Totais</p>
+                        <p>⏱ Horas Trabalhadas</p>
                         <h2 id="m-totalHoras">0h</h2>
                     </div>
                 </div>

@@ -948,7 +948,7 @@ async function loadDashboardData() {
         const manuts = [];
         manutSnap.forEach(d => manuts.push(d.data()));
 
-        // Buscar abastecimentos reais para o novo indicador do dashboard
+        // Buscar apenas abastecimentos reais
         const qAbs = query(
             collection(db, "abastecimentos"),
             where("uid", "==", currentUser.uid),
@@ -959,18 +959,6 @@ async function loadDashboardData() {
         let totalAbsReal = 0;
         absSnap.forEach(d => {
             totalAbsReal += parseFloat(d.data().valor_total) || 0;
-        });
-
-        // Buscar gastos gerais reais
-        const qGeral = query(
-            collection(db, "gastos_gerais"),
-            where("uid", "==", currentUser.uid),
-            where("data", ">=", start),
-            where("data", "<=", end)
-        );
-        const geralSnap = await getDocs(qGeral);
-        geralSnap.forEach(d => {
-            totalAbsReal += parseFloat(d.data().valor) || 0;
         });
 
         updateDashboard(data, manuts, totalAbsReal);
@@ -994,11 +982,14 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
 
     // Lucro Real Final = Arrecadado - Combustível - Variáveis - Custos Fixos
     const lucroRealFinal = metrics.ganhos - metrics.combustivel - metrics.custosVariaveisKm - custoFixoConfig;
+    // Valor Restante = Arrecadado - Gasto Estimado Combustível - Gasto Estimado Carro
+    const valorRestante = metrics.ganhos - metrics.combustivel - metrics.custosVariaveisKm;
 
     // Atualizar UI
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
     document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
     document.getElementById('totalAbastecimentoReal').textContent = formatCurrency(totalAbsReal);
+    document.getElementById('valorRestante').textContent = formatCurrency(valorRestante);
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
     document.getElementById('custoMedioKM').textContent = formatCurrency(metrics.mediaRK);
@@ -1008,6 +999,62 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
 
     // Estilo do card Lucro Real
     document.getElementById('lucroReal').style.color = lucroRealFinal >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    document.getElementById('valorRestante').style.color = valorRestante >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+
+    // --- RANKINGS ---
+    const dailyMap = {};
+    const turnoMap = {};
+
+    data.forEach(item => {
+        if (!dailyMap[item.data]) dailyMap[item.data] = { ganhos_dia: 0, lucro: 0, km: 0 };
+        
+        const litros = item.km_total / (userConfig.consumoMedio || 10);
+        const custoComb = litros * item.preco_combustivel;
+        const lucroItem = item.dinheiro - custoComb;
+
+        dailyMap[item.data].ganhos_dia += item.dinheiro;
+        dailyMap[item.data].lucro += lucroItem;
+        dailyMap[item.data].km += item.km_total;
+
+        const key = `${item.data}|${item.dia_semana}|${item.turno || 'N/A'}`;
+        if (!turnoMap[key]) {
+            turnoMap[key] = { 
+                ganhos: 0, 
+                km: 0, 
+                data: item.data, 
+                dia: item.dia_semana, 
+                turno: item.turno || 'N/A' 
+            };
+        }
+        turnoMap[key].ganhos += item.dinheiro;
+        turnoMap[key].km += item.km_total;
+    });
+
+    const sortedDays = Object.keys(dailyMap).map(date => ({ date, ...dailyMap[date] }));
+    
+    // Top 3 Lucrativos
+    const topLucro = [...sortedDays].sort((a, b) => b.lucro - a.lucro).slice(0, 3);
+    const listEl = document.getElementById('top-lucro-list');
+    listEl.innerHTML = topLucro.map((d, i) => {
+        const diaSemana = getDayOfWeek(d.date);
+        return `
+            <li style="padding: 8px 0; border-bottom: 1px solid #333;">
+                <b>${i+1}º</b> ${d.date.split('-').reverse().join('/')} (${diaSemana.substring(0, 3)}): ${formatCurrency(d.lucro)}
+            </li>
+        `;
+    }).join('');
+
+    // Maior Eficiência
+    const efficiencyTurns = Object.values(turnoMap).filter(t => t.km > 0).map(t => ({
+        ...t,
+        efficiency: t.ganhos / t.km
+    }));
+    const bestEfficiencyTurn = efficiencyTurns.sort((a, b) => b.efficiency - a.efficiency)[0];
+    
+    document.getElementById('top-km-day').innerHTML = bestEfficiencyTurn ? `
+        <h3 style="color: var(--accent-color); margin: 0;">${formatCurrency(bestEfficiencyTurn.efficiency)}/km</h3>
+        <p style="margin: 5px 0;">(${bestEfficiencyTurn.data.split('-').reverse().join('/')} | ${bestEfficiencyTurn.dia.substring(0, 7)} | ${bestEfficiencyTurn.turno})</p>
+    ` : 'Sem dados suficientes';
 
     updateDistributionBar(metrics);
     renderCharts(data);
@@ -1097,11 +1144,13 @@ function renderHistoryTable(data, manuts = []) {
         
         const variaveis = (item.km_total * custoManutKm) || 0;
         const lucroItem = item.dinheiro - custoComb - variaveis;
+        const rsPorKm = item.km_total > 0 ? (item.dinheiro / item.km_total) : 0;
 
         tr.innerHTML = `
             <td>${item.data.split('-').reverse().join('/')}</td>
             <td>${item.km_total.toFixed(1)}</td>
             <td>${formatCurrency(item.dinheiro)}</td>
+            <td>${formatCurrency(rsPorKm)}</td>
             <td style="color: ${lucroItem >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(lucroItem)}</td>
             <td class="table-actions">
                 <button class="btn-view-record" title="Visualizar">👁️</button>
@@ -1254,11 +1303,22 @@ function renderCharts(data) {
     const labels = data.map(d => d.data.split('-').reverse().slice(0,2).join('/')); // DD/MM
     const ganhos = data.map(d => d.dinheiro);
     const km = data.map(d => d.km_total);
+    
+    // Calcula custos
     const combustivel = data.map(d => {
         const litros = d.km_total / (userConfig.consumoMedio || 10);
         return litros * d.preco_combustivel;
     });
-    const lucro = data.map((d, i) => d.dinheiro - combustivel[i]);
+
+    // Custos variáveis baseados em configuração simples se não houver registros de manutenção
+    const custoVariavelKm = (userConfig.custoRevisao/userConfig.kmRevisao || 0) + 
+                            (userConfig.custoPneu/userConfig.kmPneu || 0) + 
+                            (userConfig.custoOleo/userConfig.kmOleo || 0);
+
+    const custoCarro = data.map(d => d.km_total * custoVariavelKm);
+    
+    // Lucro = Ganho - Combustível - Custo Carro
+    const lucro = data.map((d, i) => d.dinheiro - combustivel[i] - custoCarro[i]);
 
     createChart('ganhosChart', 'line', labels, [{
         label: 'Ganhos (R$)',
@@ -1270,7 +1330,8 @@ function renderCharts(data) {
 
     createChart('combustivelLucroChart', 'bar', labels, [
         { label: 'Combustível (R$)', data: combustivel, backgroundColor: '#ff3860' },
-        { label: 'Lucro Est. (R$)', data: lucro, backgroundColor: '#23d160' }
+        { label: 'Custo Carro (R$)', data: custoCarro, backgroundColor: '#f1c40f' },
+        { label: 'Lucro Real (R$)', data: lucro, backgroundColor: '#23d160' }
     ]);
 
     createChart('kmChart', 'line', labels, [{
