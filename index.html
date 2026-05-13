@@ -235,52 +235,55 @@
 
         <!-- SEÇÃO DE DASHBOARD -->
         <section id="section-dashboard" class="section" style="display: none;">
-            <section id="indicators" class="indicator-grid">
-                <div class="card indicator">
-                    <p>💰 Total Arrecadado</p>
-                    <h2 id="totalArrecadado">R$ 0,00</h2>
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>📊 Resumo de Performance</h3>
+                <div class="indicator-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">💰 Total Arrecadado</p>
+                        <h3 id="totalArrecadado">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">⛽ Combustível (Est.)</p>
+                        <h3 id="totalCombustivel">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">⛽ Combustível (Abastecido)</p>
+                        <h3 id="totalAbastecimentoReal">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">🛠 Outros Gastos (Mês)</p>
+                        <h3 id="totalGeralReal">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">⚖️ Valor Acumulado</p>
+                        <h3 id="valorRestante">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">🚗 KM Rodados</p>
+                        <h3 id="totalKM">0 km</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">🔧 Desgaste do Carro</p>
+                        <h3 id="gastoEstimadoCarro">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">📊 Média R$ / KM</p>
+                        <h3 id="custoMedioKM">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">📈 Meta Pré-definida</p>
+                        <h3 id="lucroReal">R$ 0,00</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">⏱ Horas Trabalhadas</p>
+                        <h3 id="totalHoras">0h</h3>
+                    </div>
+                    <div class="metric-item">
+                        <p style="font-size: 0.8rem; color: #888;">📅 Dias Trabalhados</p>
+                        <h3 id="totalDias">0</h3>
+                    </div>
                 </div>
-                <div class="card indicator">
-                    <p>⛽ Combustível Gasto</p>
-                    <h2 id="totalCombustivel">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>💸 Gastos Reais (Combustível)</p>
-                    <h2 id="totalAbastecimentoReal">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>🛠 Outros Gastos (Mês)</p>
-                    <h2 id="totalGeralReal">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>⚖️ Valor Acumulado</p>
-                    <h2 id="valorRestante">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>🚗 KM Rodados</p>
-                    <h2 id="totalKM">0 km</h2>
-                </div>
-                <div class="card indicator">
-                    <p>🔧 Desgaste do Carro</p>
-                    <h2 id="gastoEstimadoCarro">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>📊 Média R$ / KM</p>
-                    <h2 id="custoMedioKM">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>📈 Meta Pré-definida</p>
-                    <h2 id="lucroReal">R$ 0,00</h2>
-                </div>
-                <div class="card indicator">
-                    <p>⏱ Horas Trabalhadas</p>
-                    <h2 id="totalHoras">0h</h2>
-                </div>
-                <div class="card indicator">
-                    <p>📅 Dias Trabalhados</p>
-                    <h2 id="totalDias">0</h2>
-                </div>
-            </section>
+            </div>
 
             <section id="charts">
                 <div class="chart-container card">
