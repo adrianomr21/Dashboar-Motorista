@@ -351,8 +351,8 @@ function refreshDefaultTurno() {
     if (currentHour >= 0 && currentHour < 6) defaultTurno = 'Madrugada';
     else if (currentHour >= 6 && currentHour < 12) defaultTurno = 'Manhã';
     else if (currentHour >= 12 && currentHour < 14) defaultTurno = 'Meio-dia';
-    else if (currentHour >= 14 && currentHour < 18) defaultTurno = 'Tarde';
-    else if (currentHour >= 18 && currentHour <= 23) defaultTurno = 'Noite';
+    else if (currentHour >= 14 && currentHour < 16) defaultTurno = 'Tarde';
+    else if (currentHour >= 16 && currentHour <= 23) defaultTurno = 'Noite';
 
     document.getElementById('field-turno').value = defaultTurno;
 }
