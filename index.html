@@ -127,37 +127,14 @@
                 <h3>📝 Novo Registro</h3>
                 <form id="form-cadastro" class="grid-form">
                     <input type="hidden" id="field-id">
-                    <div class="input-group">
-                        <label>Data</label>
-                        <input type="date" id="field-data" required>
-                    </div>
-                    <div class="input-group">
-                        <label>KM Inicial</label>
-                        <input type="number" id="field-km-inicial" step="0.1" placeholder="0.0">
-                    </div>
-                    <div class="input-group">
-                        <label>KM Final</label>
-                        <input type="number" id="field-km-final" step="0.1" placeholder="0.0">
-                    </div>
-                    <div class="input-group">
-                        <label>Dinheiro (R$)</label>
-                        <input type="tel" id="field-dinheiro" inputmode="numeric" placeholder="0,00">
-                    </div>
-                    <div class="input-group">
-                        <label>Hora Início</label>
-                        <input type="time" id="field-hora-inicio" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Hora Fim</label>
-                        <input type="time" id="field-hora-fim">
-                    </div>
-                    <div class="input-group">
-                        <label>Tempo Trabalhado</label>
-                        <input type="text" id="display-horas-total" readonly placeholder="0:00" style="background: #2a2a2a; color: var(--primary-color); font-weight: bold; text-align: center;">
-                    </div>
-                    <div class="input-group">
-                        <label>Dia da Semana</label>
-                        <select id="field-dia-semana">
+                    
+                    <!-- CABEÇALHO DE DATA COMPACTO -->
+                    <div class="full-width date-highlight-container">
+                        <div class="date-row">
+                            <input type="date" id="field-data" required>
+                            <div id="display-dia-semana" class="day-badge">---</div>
+                        </div>
+                        <select id="field-dia-semana" style="display: none;">
                             <option value="Segunda">Segunda</option>
                             <option value="Terça">Terça</option>
                             <option value="Quarta">Quarta</option>
@@ -167,67 +144,108 @@
                             <option value="Domingo">Domingo</option>
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label>Turno</label>
-                        <select id="field-turno">
-                            <option value="Manhã">Manhã</option>
-                            <option value="Meio-dia">Meio-dia</option>
-                            <option value="Tarde">Tarde</option>
-                            <option value="Noite">Noite</option>
-                            <option value="Madrugada">Madrugada</option>
-                        </select>
+
+                    <!-- GRUPO KM E GANHOS -->
+                    <div class="form-section full-width">
+                        <div class="form-section-title">💰 Ganhos e Kilometragem</div>
+                        <div class="input-group input-highlight">
+                            <label>KM Inicial</label>
+                            <input type="number" id="field-km-inicial" step="0.1" placeholder="0.0">
+                        </div>
+                        <div class="input-group input-highlight">
+                            <label>KM Final</label>
+                            <input type="number" id="field-km-final" step="0.1" placeholder="0.0">
+                        </div>
+                        <div class="input-group input-highlight full-width">
+                            <label>Dinheiro (R$)</label>
+                            <input type="tel" id="field-dinheiro" inputmode="numeric" placeholder="0,00">
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>Movimentação</label>
-                        <select id="field-movimentacao">
-                            <option value="Baixa">Baixa</option>
-                            <option value="Média">Média</option>
-                            <option value="Alta">Alta</option>
-                        </select>
+
+                    <!-- GRUPO TEMPO -->
+                    <div class="form-section full-width">
+                        <div class="form-section-title">⏱️ Tempo de Trabalho</div>
+                        <div class="input-group">
+                            <label>Início</label>
+                            <input type="time" id="field-hora-inicio" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Fim</label>
+                            <input type="time" id="field-hora-fim">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Total de Horas</label>
+                            <input type="text" id="display-horas-total" readonly placeholder="0:00" style="background: rgba(0,209,178,0.05); color: var(--primary-color); font-weight: bold; text-align: center; border-color: var(--primary-color);">
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>Perfil Passageiro</label>
-                        <select id="field-perfil">
-                            <option value="Trabalhador">Trabalhador</option>
-                            <option value="Estudante">Estudante</option>
-                            <option value="Turista">Turista</option>
-                            <option value="Passeio">Passeio</option>
-                            <option value="Festa">Festa</option>
-                            <option value="Bagunceiro">Bagunceiro</option>
-                            <option value="Família">Família</option>
-                            <option value="Criança">Criança</option>
-                        </select>
+
+                    <!-- GRUPO CONTEXTO -->
+                    <div class="form-section full-width">
+                        <div class="form-section-title">🚗 Contexto</div>
+                        <div class="input-group">
+                            <label>Turno</label>
+                            <select id="field-turno">
+                                <option value="Manhã">Manhã</option>
+                                <option value="Meio-dia">Meio-dia</option>
+                                <option value="Tarde">Tarde</option>
+                                <option value="Noite">Noite</option>
+                                <option value="Madrugada">Madrugada</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>App</label>
+                            <select id="field-app">
+                                <option value="Uber">Uber</option>
+                                <option value="99">99</option>
+                                <option value="Indriver">Indriver</option>
+                                <option value="Particular">Particular</option>
+                                <option value="Misto">Misto</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Movimentação</label>
+                            <select id="field-movimentacao">
+                                <option value="Baixa">Baixa</option>
+                                <option value="Média">Média</option>
+                                <option value="Alta">Alta</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Trânsito</label>
+                            <select id="field-transito">
+                                <option value="Livre">Livre</option>
+                                <option value="Moderado">Moderado</option>
+                                <option value="Intenso">Intenso</option>
+                                <option value="Parado">Parado</option>
+                            </select>
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Perfil Passageiro</label>
+                            <select id="field-perfil">
+                                <option value="Trabalhador">Trabalhador</option>
+                                <option value="Estudante">Estudante</option>
+                                <option value="Turista">Turista</option>
+                                <option value="Passeio">Passeio</option>
+                                <option value="Festa">Festa</option>
+                                <option value="Bagunceiro">Bagunceiro</option>
+                                <option value="Família">Família</option>
+                                <option value="Criança">Criança</option>
+                            </select>
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Preço Combustível (R$)</label>
+                            <input type="tel" id="field-combustivel" inputmode="numeric" placeholder="0,000">
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>App</label>
-                        <select id="field-app">
-                            <option value="Uber">Uber</option>
-                            <option value="99">99</option>
-                            <option value="Indriver">Indriver</option>
-                            <option value="Particular">Particular</option>
-                            <option value="Misto">Misto</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Trânsito</label>
-                        <select id="field-transito">
-                            <option value="Livre">Livre</option>
-                            <option value="Moderado">Moderado</option>
-                            <option value="Intenso">Intenso</option>
-                            <option value="Parado">Parado</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Preço Combustível (R$)</label>
-                        <input type="number" id="field-combustivel" step="0.001" placeholder="0,000">
-                    </div>
-                    <div class="input-group full-width">
+
+                    <div class="input-group full-width" style="margin-top: 15px;">
                         <label>Observações</label>
-                        <textarea id="field-obs" rows="2"></textarea>
+                        <textarea id="field-obs" rows="2" placeholder="Algo relevante sobre hoje?"></textarea>
                     </div>
-                    <div class="button-group full-width" style="display: flex; gap: 10px;">
-                        <button type="submit" id="saveBtn" class="primary-btn" style="flex: 2;">Salvar</button>
-                        <button type="button" id="cancelEditBtn" class="secondary-btn" style="display: none; flex: 1; margin-top: 10px; padding: 15px;">Cancelar</button>
+
+                    <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" id="saveBtn" class="primary-btn" style="flex: 2; height: 60px; font-size: 1.2rem;">Salvar Registro</button>
+                        <button type="button" id="cancelEditBtn" class="secondary-btn" style="display: none; flex: 1; height: 60px;">Cancelar</button>
                     </div>
                 </form>
             </div>

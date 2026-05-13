@@ -149,6 +149,130 @@ input:focus, select:focus, textarea:focus {
   transform: scale(0.98);
 }
 
+/* Melhorias de UX no Formulário */
+.grid-form .input-group label {
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.grid-form input, 
+.grid-form select, 
+.grid-form textarea {
+    font-size: 1.1rem; /* Fonte maior para facilitar leitura */
+    padding: 14px;
+    border-radius: 10px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+    width: 100%;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.grid-form input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 209, 178, 0.2);
+    outline: none;
+}
+
+/* Destaque para campos numéricos principais (KMs e Dinheiro) */
+.input-highlight input {
+    font-size: 1.5rem !important;
+    font-weight: bold;
+    color: var(--primary-color) !important;
+    text-align: center;
+    border-color: #444;
+}
+
+.input-highlight label {
+    text-align: center;
+}
+
+/* Novo Destaque para a Data - Mais compacto e horizontal */
+.date-highlight-container {
+    background: linear-gradient(135deg, rgba(0, 209, 178, 0.08), rgba(30, 30, 30, 1));
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 209, 178, 0.2);
+    margin-bottom: 5px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.date-highlight-container label {
+    display: none; /* Esconde label redundante para ganhar espaço */
+}
+
+.date-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    justify-content:space-between;
+}
+
+#field-data {
+    font-size: 1.2rem !important;
+    font-weight: bold;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--primary-color);
+    padding: 8px 0;
+    border-radius: 0;
+    width: auto;
+}
+
+.day-badge {
+    background: rgba(0, 209, 178, 0.15);
+    color: var(--primary-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+    border: 1px solid var(--primary-color);
+    white-space: nowrap;
+}
+
+/* Agrupamento de Seções no Formulário - Mais leve */
+.form-section {
+    padding: 10px 0;
+    margin-top: 10px;
+    border-top: 1px solid #333;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.form-section-title {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+/* Ajustes de layout mobile */
+@media (max-width: 600px) {
+    .grid-form {
+        gap: 10px;
+    }
+    
+    .date-highlight-container {
+        flex-direction: row;
+        padding: 12px;
+    }
+}
+
 .card {
   background-color: var(--card-bg);
   border-radius: 10px;

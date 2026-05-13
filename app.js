@@ -68,17 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupAuthListener() {
     onAuthStateChanged(auth, (user) => {
-        showLoader(false);
-        if (user) {
+        // Autenticação silenciosa: só mostra loader se não houver usuário e estivermos na tela de login
+        // ou se for uma ação explícita de login/cadastro.
+        const isLoggingIn = sections.login.style.display === 'block' || sections.signup.style.display === 'block';
+        if (!user && !isLoggingIn) {
+            // Se perdeu a sessão mas não estava tentando logar, mostra login sem travar tudo
+            showApp(false);
+        } else if (user) {
             currentUser = user;
             showApp(true);
             initApp();
-        } else {
-            currentUser = null;
-            showApp(false);
-            setupLoginForm();
-            setupSignupForm();
         }
+        showLoader(false);
     });
 }
 
@@ -740,6 +741,7 @@ function setupForm() {
     const startField = document.getElementById('field-hora-inicio');
     const endField = document.getElementById('field-hora-fim');
     const displayTotal = document.getElementById('display-horas-total');
+    const fuelPriceField = document.getElementById('field-combustivel');
     
     // Máscara de Moeda
     moneyField.addEventListener('input', (e) => {
@@ -748,6 +750,19 @@ function setupForm() {
             e.target.value = '';
             return;
         }
+        value = (parseInt(value) / 100).toFixed(2);
+        e.target.value = value.replace('.', ',');
+    });
+
+    // Máscara de Preço de Combustível (2 casas decimais, permite digitar até 3 dígitos)
+    fuelPriceField.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        
+        if (value === '') {
+            e.target.value = '';
+            return;
+        }
+        
         value = (parseInt(value) / 100).toFixed(2);
         e.target.value = value.replace('.', ',');
     });
@@ -784,7 +799,14 @@ function setupForm() {
 
 function updateDayOfWeek() {
     const dateVal = document.getElementById('field-data').value;
-    document.getElementById('field-dia-semana').value = getDayOfWeek(dateVal);
+    const dayName = getDayOfWeek(dateVal);
+    document.getElementById('field-dia-semana').value = dayName;
+    
+    // Atualiza o novo badge visual
+    const displayBadge = document.getElementById('display-dia-semana');
+    if (displayBadge) {
+        displayBadge.textContent = dayName;
+    }
 }
 
 function saveFormCache() {
