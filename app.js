@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
     setupPWAInstall();
     setupAuthToggles();
+    setupLoginForm();
+    setupSignupForm();
 });
 
 function setupAuthListener() {
