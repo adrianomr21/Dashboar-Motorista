@@ -791,7 +791,7 @@ function saveFormCache() {
     const formData = {};
     document.querySelectorAll('#form-cadastro [id^="field-"]').forEach(field => {
         // Exclui campos que não devem ser salvos no cache (conforme solicitado pelo usuário)
-        if (field.id !== 'field-data' && field.id !== 'field-hora-inicio' && field.id !== 'field-turno') {
+        if (field.id !== 'field-data' && field.id !== 'field-hora-inicio' && field.id !== 'field-turno' && field.id !== 'field-dia-semana') {
             formData[field.id] = field.value;
         }
     });
@@ -805,7 +805,7 @@ function loadFormCache() {
         Object.keys(data).forEach(id => {
             const el = document.getElementById(id);
             // Também garante que não carregue se por acaso ainda estiver no cache antigo
-            if (el && id !== 'field-data' && id !== 'field-id' && id !== 'field-hora-inicio' && id !== 'field-turno') { 
+            if (el && id !== 'field-data' && id !== 'field-id' && id !== 'field-hora-inicio' && id !== 'field-turno' && id !== 'field-dia-semana') { 
                 el.value = data[id];
             }
         });
