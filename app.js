@@ -4,7 +4,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { 
     DEFAULT_CONFIG, 
     formatCurrency, getDayOfWeek, calculateKmTotal, 
-    calculateFuelCost, calculateDashboardMetrics,
+    calculateFuelCost, calculateDashboardMetrics, calculateVariableKmCosts,
     getLocalDate, getFirstDayOfMonth, getCurrentTime, calculateTimeDiff,
     formatDecimalHours
 } from "./utils.js";
@@ -961,7 +961,20 @@ async function loadDashboardData() {
             totalAbsReal += parseFloat(d.data().valor_total) || 0;
         });
 
-        updateDashboard(data, manuts, totalAbsReal);
+        // Buscar outros gastos reais (Mês)
+        const qGeral = query(
+            collection(db, "gastos_gerais"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end)
+        );
+        const geralSnap = await getDocs(qGeral);
+        let totalGeralReal = 0;
+        geralSnap.forEach(d => {
+            totalGeralReal += parseFloat(d.data().valor) || 0;
+        });
+
+        updateDashboard(data, manuts, totalAbsReal, totalGeralReal);
         checkMaintenanceAlerts();
     } catch (e) {
         console.error("Erro ao carregar: ", e);
@@ -971,7 +984,7 @@ async function loadDashboardData() {
     }
 }
 
-function updateDashboard(data, manuts = [], totalAbsReal = 0) {
+function updateDashboard(data, manuts = [], totalAbsReal = 0, totalGeralReal = 0) {
     const metrics = calculateDashboardMetrics(data, userConfig, manuts);
 
     // Custos Fixos Totais da Configuração
@@ -989,6 +1002,7 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
     document.getElementById('totalArrecadado').textContent = formatCurrency(metrics.ganhos);
     document.getElementById('totalCombustivel').textContent = formatCurrency(metrics.combustivel);
     document.getElementById('totalAbastecimentoReal').textContent = formatCurrency(totalAbsReal);
+    document.getElementById('totalGeralReal').textContent = formatCurrency(totalGeralReal);
     document.getElementById('valorRestante').textContent = formatCurrency(valorRestante);
     document.getElementById('totalKM').textContent = `${metrics.km.toFixed(1)} km`;
     document.getElementById('gastoEstimadoCarro').textContent = formatCurrency(metrics.custosVariaveisKm);
@@ -1006,15 +1020,17 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
     const turnoMap = {};
 
     data.forEach(item => {
-        if (!dailyMap[item.data]) dailyMap[item.data] = { ganhos_dia: 0, lucro: 0, km: 0 };
+        if (!dailyMap[item.data]) dailyMap[item.data] = { ganhos_dia: 0, lucro: 0, km: 0, horas: 0 };
         
         const litros = item.km_total / (userConfig.consumoMedio || 10);
         const custoComb = litros * item.preco_combustivel;
-        const lucroItem = item.dinheiro - custoComb;
+        const custoVariavel = calculateVariableKmCosts(item.km_total, userConfig, manuts);
+        const lucroItem = item.dinheiro - custoComb - custoVariavel;
 
         dailyMap[item.data].ganhos_dia += item.dinheiro;
         dailyMap[item.data].lucro += lucroItem;
         dailyMap[item.data].km += item.km_total;
+        dailyMap[item.data].horas += (item.horas || 0);
 
         const key = `${item.data}|${item.dia_semana}|${item.turno || 'N/A'}`;
         if (!turnoMap[key]) {
@@ -1032,6 +1048,24 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0) {
 
     const sortedDays = Object.keys(dailyMap).map(date => ({ date, ...dailyMap[date] }));
     
+    // Resumo do Último Dia (última data cronológica)
+    const lastDay = sortedDays.sort((a, b) => b.date.localeCompare(a.date))[0];
+    const summaryCard = document.getElementById('daily-summary-card');
+    
+    if (lastDay) {
+        summaryCard.style.display = 'block';
+        document.getElementById('summary-date').textContent = lastDay.date.split('-').reverse().slice(0, 2).join('/');
+        document.getElementById('summary-lucro').textContent = formatCurrency(lastDay.lucro);
+        document.getElementById('summary-lucro').style.color = lastDay.lucro >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        
+        const rskm = lastDay.km > 0 ? (lastDay.ganhos_dia / lastDay.km) : 0;
+        document.getElementById('summary-rskm').textContent = formatCurrency(rskm);
+        document.getElementById('summary-km').textContent = `${lastDay.km.toFixed(1)} km`;
+        document.getElementById('summary-horas').textContent = formatDecimalHours(lastDay.horas);
+    } else {
+        summaryCard.style.display = 'none';
+    }
+
     // Top 3 Lucrativos
     const topLucro = [...sortedDays].sort((a, b) => b.lucro - a.lucro).slice(0, 3);
     const listEl = document.getElementById('top-lucro-list');
@@ -1134,15 +1168,7 @@ function renderHistoryTable(data, manuts = []) {
         // Calcula lucro da linha
         const litros = item.km_total / (userConfig.consumoMedio || 10);
         const custoComb = litros * item.preco_combustivel;
-        
-        let custoManutKm = 0;
-        if (manuts.length > 0) {
-            custoManutKm = manuts.reduce((acc, m) => acc + (m.valor / m.km_total), 0);
-        } else {
-            custoManutKm = (userConfig.custoRevisao/userConfig.kmRevisao + userConfig.custoPneu/userConfig.kmPneu + userConfig.custoOleo/userConfig.kmOleo);
-        }
-        
-        const variaveis = (item.km_total * custoManutKm) || 0;
+        const variaveis = calculateVariableKmCosts(item.km_total, userConfig, manuts);
         const lucroItem = item.dinheiro - custoComb - variaveis;
         const rsPorKm = item.km_total > 0 ? (item.dinheiro / item.km_total) : 0;
 
@@ -1176,18 +1202,7 @@ function showRecordDetails(item, manuts = []) {
     const precoComb = item.preco_combustivel || 0;
     
     const gastoComb = calculateFuelCost(kmTotal, precoComb, userConfig.consumoMedio);
-    
-    let custoManutKm = 0;
-    if (manuts && manuts.length > 0) {
-        custoManutKm = manuts.reduce((acc, m) => acc + (parseFloat(m.valor) / parseFloat(m.km_total)), 0);
-    } else {
-        const cRevisao = userConfig.custoRevisao / userConfig.kmRevisao || 0;
-        const cPneu = userConfig.custoPneu / userConfig.kmPneu || 0;
-        const cOleo = userConfig.custoOleo / userConfig.kmOleo || 0;
-        custoManutKm = cRevisao + cPneu + cOleo;
-    }
-    
-    const gastoCarro = kmTotal * custoManutKm;
+    const gastoCarro = calculateVariableKmCosts(kmTotal, userConfig, manuts);
     const lucro = item.dinheiro - gastoComb - gastoCarro;
     const mediaRK = kmTotal > 0 ? item.dinheiro / kmTotal : 0;
 
@@ -1632,16 +1647,7 @@ function renderSingleReceipt(registros, manuts, start, end) {
         const litros = r.km_total / (userConfig.consumoMedio || 10);
         totalCombustivel += (litros * r.preco_combustivel);
         
-        let custoManutKm = 0;
-        if (manuts.length > 0) {
-            custoManutKm = manuts.reduce((acc, m) => acc + (m.valor / m.km_total), 0);
-        } else {
-            const cRevisao = userConfig.custoRevisao / userConfig.kmRevisao || 0;
-            const cPneu = userConfig.custoPneu / userConfig.kmPneu || 0;
-            const cOleo = userConfig.custoOleo / userConfig.kmOleo || 0;
-            custoManutKm = cRevisao + cPneu + cOleo;
-        }
-        totalVariaveis += (r.km_total * custoManutKm);
+        totalVariaveis += calculateVariableKmCosts(r.km_total, userConfig, manuts);
     });
 
     const lucro = totalGanhos - totalCombustivel - totalVariaveis - custoFixoTotal;

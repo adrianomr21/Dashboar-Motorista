@@ -245,8 +245,12 @@
                     <h2 id="totalCombustivel">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
-                    <p>💸 Gastos Reais</p>
+                    <p>💸 Gastos Reais (Combustível)</p>
                     <h2 id="totalAbastecimentoReal">R$ 0,00</h2>
+                </div>
+                <div class="card indicator">
+                    <p>🛠 Outros Gastos (Mês)</p>
+                    <h2 id="totalGeralReal">R$ 0,00</h2>
                 </div>
                 <div class="card indicator">
                     <p>⚖️ Valor Acumulado</p>
@@ -292,6 +296,29 @@
                         <span id="label-variable"><i class="dot variable"></i> Variáveis: R$ 0,00</span>
                         <span id="label-fixed"><i class="dot fixed"></i> Fixos: R$ 0,00</span>
                         <span id="label-profit"><i class="dot profit"></i> Lucro: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- RESUMO DO DIA -->
+                <div class="card" id="daily-summary-card" style="margin-top: 20px;">
+                    <h3>📅 Resumo do Último Dia (<span id="summary-date">--/--</span>)</h3>
+                    <div class="metrics-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                        <div class="metric-item">
+                            <p style="font-size: 0.85rem; color: #888; margin-bottom: 5px;">Lucro Líquido</p>
+                            <h3 id="summary-lucro" style="color: var(--success-color);">R$ 0,00</h3>
+                        </div>
+                        <div class="metric-item">
+                            <p style="font-size: 0.85rem; color: #888; margin-bottom: 5px;">Média R$/KM</p>
+                            <h3 id="summary-rskm">R$ 0,00</h3>
+                        </div>
+                        <div class="metric-item">
+                            <p style="font-size: 0.85rem; color: #888; margin-bottom: 5px;">KM Rodados</p>
+                            <h3 id="summary-km">0 km</h3>
+                        </div>
+                        <div class="metric-item">
+                            <p style="font-size: 0.85rem; color: #888; margin-bottom: 5px;">Horas Trabalhadas</p>
+                            <h3 id="summary-horas">0h</h3>
+                        </div>
                     </div>
                 </div>
 

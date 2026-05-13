@@ -9,23 +9,27 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - Contexto da jornada: Dia da semana (auto-calculado), Turno, Movimentação, Perfil de Passageiro, Aplicativo utilizado, Trânsito.
 - Controle de custos: Preço do combustível no dia.
 - Observações gerais.
-- **Cache Local:** Salva o rascunho do formulário automaticamente para evitar perda de dados antes do envio.
+- **Cache Local:** Salva o rascunho do formulário automaticamente.
+- **Gestão de Gastos:** Registro avulso de Acessórios, Manutenção, Revisão e Outros.
 
 ### 2. Dashboard de Performance
-- **Indicadores Financeiros:** Total Arrecadado, Gasto Estimado Combustível (baseado em consumo médio de 10km/L), Gasto Estimado Carro (Manutenção, Pneu, Óleo), Lucro Real.
+- **Indicadores Financeiros:** Total Arrecadado, Posto de Combustível (Real), Valor Restante, Lucro Real, Gasto Estimado Combustível, Gasto Estimado Carro.
 - **Métricas de Eficiência:** Média de R$ por KM rodado.
-- **Estatísticas de Trabalho:** Total de Horas e Dias trabalhados no período selecionado.
+- **Rankings:** Top 3 Dias mais lucrativos e Dia com maior eficiência (R$/km) por turno.
+- **Estatísticas de Trabalho:** Total de Horas e Dias trabalhados no período.
 - **Filtros Temporais:** Consulta por intervalo de datas.
 
 ### 3. Visualização de Dados (Gráficos)
 - Evolução de Ganhos diários.
-- Comparativo entre Combustível vs Lucro Estimado.
+- Comparativo entre Combustível, Custo Carro e Lucro Real.
 - Histórico de KM Rodados.
 
+### 4. Histórico de Registros
+- Tabela detalhada com R$/km por turno e lucro calculado.
+
 ### 5. Capacidades PWA
-- **Funcionamento Offline:** Utiliza Service Worker para cachear assets essenciais (HTML, CSS, JS, Manifest e Chart.js).
-- **Instalável:** Configurado com manifest para exibição em modo `standalone` com tema escuro.
-- **Estratégia de Cache:** Cache-first para recursos estáticos, garantindo carregamento rápido mesmo com conexão instável.
+- **Funcionamento Offline:** Utiliza Service Worker para cachear assets essenciais.
+- **Instalável:** Configurado com manifest para exibição em modo `standalone`.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -33,48 +37,15 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - **Gráficos:** [Chart.js](https://www.chart.js.org/).
 - **Backend/Database:** [Firebase Firestore](https://firebase.google.com/products/firestore).
 - **PWA:** Service Workers e Web App Manifest.
-- **Ícones:** Icons8.
 
 ### 6. Design & UI
 - **Paleta de Cores:** Fundo escuro (`#121212`) com acentos em Verde Turquesa (`#00d1b2`) para ações primárias e Azul (`#3273dc`) para métricas.
 - **Responsividade:** Layout adaptável para dispositivos móveis, utilizando Grid e Flexbox.
-- **Componentes:** Sistema de cards para indicadores e gráficos.
-
-## 📁 Estrutura do Projeto
-
-```text
-.
-├── app.js               # Lógica principal, integração Firebase e Charts
-├── index.html           # Estrutura da UI (Cadastro e Dashboard)
-├── style.css            # Estilização (Dark Theme e Layout Responsivo)
-├── manifest.json        # Configurações de instalação PWA
-├── service-worker.js    # Estratégia de cache e funcionamento offline
-└── package.json         # Dependências do projeto
-```
-
-## ⚙️ Configuração e Instalação
-
-### Pré-requisitos
-- Node.js (opcional, para servidor local).
-- Conta no Firebase para o banco de dados.
-
-### Inicialização Rápida
-1. Clone o repositório.
-2. O projeto utiliza CDN para as principais bibliotecas, então não é necessário `npm install` para funcionamento básico (exceto se for rodar ferramentas de desenvolvimento).
-3. Abra o `index.html` em um servidor local (ex: Live Server do VS Code).
-
-### Configuração do Firebase
-As credenciais atuais estão no `app.js`. Para usar seu próprio banco:
-1. Crie um projeto no Console do Firebase.
-2. Ative o Firestore Database.
-3. Substitua a `const firebaseConfig` no topo do `app.js` com as suas credenciais.
 
 ## 📋 Regras de Negócio Implementadas
 
-- **Cálculo de KM:** O sistema calcula automaticamente `km_total = km_final - km_inicial`.
-- **Custo Combustível:** Estimativa baseada em um consumo fixo de **10km/L**. O cálculo é: `(km_total / 10) * preco_combustivel_do_dia`.
+- **Cálculo de KM:** Automático: `km_total = km_final - km_inicial`.
+- **Custo Combustível:** Estimativa baseada em consumo médio configurável (padrão 10km/L).
+- **Eficiência:** Calculada como `Ganhos Brutos / KM Total`.
+- **Valor Restante:** `Arrecadado - Gasto Combustível Est. - Gasto Carro Est.`.
 
-## 🤖 Diretrizes do Gemini
-
-- **Idioma:** Sempre responder em Português do Brasil (pt-BR).
-- **Testes:** Priorizar a manutenção da cobertura de testes unitários ao modificar a lógica em `utils.js`.
