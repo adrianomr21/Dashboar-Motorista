@@ -1114,12 +1114,16 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0, totalGeralReal = 0
         `;
     }).join('');
 
-    // Dia com Maior KM
-    const topKmDay = [...sortedDays].sort((a, b) => b.km - a.km)[0];
+    // Dia com Maior R$/KM
+    const efficiencyDays = [...sortedDays].filter(d => d.km > 0).map(d => ({
+        ...d,
+        efficiency: d.ganhos_dia / d.km
+    }));
+    const bestEfficiencyDay = efficiencyDays.sort((a, b) => b.efficiency - a.efficiency)[0];
     
-    document.getElementById('top-km-day').innerHTML = topKmDay ? `
-        <h3 style="color: var(--accent-color); margin: 0;">${topKmDay.km.toFixed(1)} KM</h3>
-        <p style="margin: 5px 0;">(${topKmDay.date.split('-').reverse().join('/')} | ${getDayOfWeek(topKmDay.date)})</p>
+    document.getElementById('top-km-day').innerHTML = bestEfficiencyDay ? `
+        <h3 style="color: var(--accent-color); margin: 0;">${formatCurrency(bestEfficiencyDay.efficiency)}/KM</h3>
+        <p style="margin: 5px 0;">(${bestEfficiencyDay.date.split('-').reverse().join('/')} | ${getDayOfWeek(bestEfficiencyDay.date)})</p>
     ` : 'Sem dados suficientes';
 
     updateDistributionBar(metrics);
