@@ -1102,16 +1102,24 @@ function updateDashboard(data, manuts = [], totalAbsReal = 0, totalGeralReal = 0
         `;
     }).join('');
 
-    // Maior Eficiência
-    const efficiencyTurns = Object.values(turnoMap).filter(t => t.km > 0).map(t => ({
-        ...t,
-        efficiency: t.ganhos / t.km
-    }));
-    const bestEfficiencyTurn = efficiencyTurns.sort((a, b) => b.efficiency - a.efficiency)[0];
+    // Top 3 Menos Lucrativos
+    const bottomLucro = [...sortedDays].sort((a, b) => a.lucro - b.lucro).slice(0, 3);
+    const bottomListEl = document.getElementById('bottom-lucro-list');
+    bottomListEl.innerHTML = bottomLucro.map((d, i) => {
+        const diaSemana = getDayOfWeek(d.date);
+        return `
+            <li style="padding: 8px 0; border-bottom: 1px solid #333;">
+                <b>${i+1}º</b> ${d.date.split('-').reverse().join('/')} (${diaSemana.substring(0, 3)}): ${formatCurrency(d.lucro)}
+            </li>
+        `;
+    }).join('');
+
+    // Dia com Maior KM
+    const topKmDay = [...sortedDays].sort((a, b) => b.km - a.km)[0];
     
-    document.getElementById('top-km-day').innerHTML = bestEfficiencyTurn ? `
-        <h3 style="color: var(--accent-color); margin: 0;">${formatCurrency(bestEfficiencyTurn.efficiency)}/km</h3>
-        <p style="margin: 5px 0;">(${bestEfficiencyTurn.data.split('-').reverse().join('/')} | ${bestEfficiencyTurn.dia.substring(0, 7)} | ${bestEfficiencyTurn.turno})</p>
+    document.getElementById('top-km-day').innerHTML = topKmDay ? `
+        <h3 style="color: var(--accent-color); margin: 0;">${topKmDay.km.toFixed(1)} KM</h3>
+        <p style="margin: 5px 0;">(${topKmDay.date.split('-').reverse().join('/')} | ${getDayOfWeek(topKmDay.date)})</p>
     ` : 'Sem dados suficientes';
 
     updateDistributionBar(metrics);
