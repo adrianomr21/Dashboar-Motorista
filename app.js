@@ -774,8 +774,9 @@ function setupForm() {
     if (!idField.value) {
         dateField.value = getLocalDate();
         updateDayOfWeek();
+        // A hora de início agora começa vazia conforme solicitado
         if (!startField.value) {
-            startField.value = getCurrentTime();
+            startField.value = '';
         }
         refreshDefaultTurno();
     }
@@ -881,7 +882,7 @@ async function saveToFirebase() {
             perfil_passageiro: document.getElementById('field-perfil').value,
             app: document.getElementById('field-app').value,
             transito: document.getElementById('field-transito').value,
-            preco_combustivel: parseFloat(document.getElementById('field-combustivel').value) || 0,
+            preco_combustivel: parseFloat(document.getElementById('field-combustivel').value.replace(',', '.')) || 0,
             observacoes: document.getElementById('field-obs').value,
             uid: currentUser.uid,
             timestamp: new Date()
@@ -923,14 +924,18 @@ function resetCadastroForm() {
         document.getElementById('field-km-inicial').value = data.km_final || '';
         document.getElementById('field-km-final').value = '';
         document.getElementById('field-dinheiro').value = '';
-        document.getElementById('field-hora-inicio').value = getCurrentTime(); // Sempre atual
+        document.getElementById('field-hora-inicio').value = ''; // Inicia vazio conforme solicitado
         document.getElementById('field-hora-fim').value = '';
         document.getElementById('display-horas-total').value = '0:00';
         document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
         document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
         document.getElementById('field-app').value = data.app || 'Uber';
         document.getElementById('field-transito').value = data.transito || 'Moderado';
-        document.getElementById('field-combustivel').value = data.preco_combustivel || '';
+        
+        // Formata o preço do combustível para "0,00" se existir
+        const precoComb = data.preco_combustivel;
+        document.getElementById('field-combustivel').value = precoComb ? precoComb.toFixed(2).replace('.', ',') : '';
+        
         document.getElementById('field-obs').value = '';
     } else {
         document.getElementById('field-hora-inicio').value = getCurrentTime();
