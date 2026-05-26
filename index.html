@@ -167,11 +167,17 @@
                         <div class="form-section-title">⏱️ Tempo de Trabalho</div>
                         <div class="input-group">
                             <label>Início</label>
-                            <input type="time" id="field-hora-inicio" required>
+                            <div class="time-input-container">
+                                <input type="text" id="field-hora-inicio" required readonly placeholder="--:--">
+                                <button type="button" class="btn-time-record" id="btn-record-inicio">🕒 Registrar</button>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>Fim</label>
-                            <input type="time" id="field-hora-fim">
+                            <div class="time-input-container">
+                                <input type="text" id="field-hora-fim" readonly placeholder="--:--">
+                                <button type="button" class="btn-time-record" id="btn-record-fim">🏁 Registrar</button>
+                            </div>
                         </div>
                         <div class="input-group full-width">
                             <label>Total de Horas</label>

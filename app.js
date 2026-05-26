@@ -785,6 +785,22 @@ function setupForm() {
         displayTotal.value = diff.formatted;
     };
 
+    // Novos Botões de Registro de Tempo
+    const btnRecordInicio = document.getElementById('btn-record-inicio');
+    const btnRecordFim = document.getElementById('btn-record-fim');
+
+    btnRecordInicio.addEventListener('click', () => {
+        startField.value = getCurrentTime();
+        updateCalculatedHours();
+        saveFormCache();
+    });
+
+    btnRecordFim.addEventListener('click', () => {
+        endField.value = getCurrentTime();
+        updateCalculatedHours();
+        saveFormCache();
+    });
+
     startField.addEventListener('input', updateCalculatedHours);
     endField.addEventListener('input', updateCalculatedHours);
 

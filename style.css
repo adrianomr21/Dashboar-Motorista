@@ -178,6 +178,43 @@ input:focus, select:focus, textarea:focus {
     outline: none;
 }
 
+/* Container para Input de Tempo com Botão */
+.time-input-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.time-input-container input {
+    flex: 1;
+    text-align: center;
+}
+
+.btn-time-record {
+    background: var(--primary-color);
+    color: #000;
+    border: none;
+    padding: 14px 15px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, opacity 0.2s;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+}
+
+.btn-time-record:active {
+    opacity: 0.8;
+}
+
+.btn-time-record:hover {
+    filter: brightness(1.1);
+}
+
 /* Destaque para campos numéricos principais (KMs e Dinheiro) */
 .input-highlight input {
     font-size: 1.5rem !important;
