@@ -324,12 +324,9 @@ function switchTab(target) {
         if (!id) {
             document.getElementById('field-data').value = getLocalDate();
             updateDayOfWeek();
-            // A hora de início só atualiza se estiver vazia para não perder o que o usuário digitou
-            // Mas o turno pode ser recalculado
-            const startField = document.getElementById('field-hora-inicio');
-            if (!startField.value) {
-                startField.value = getCurrentTime();
-            }
+            // A hora de início e fim iniciam vazias para exibir o placeholder "PRESSIONE PARA REGISTRAR"
+            document.getElementById('field-hora-inicio').value = '';
+            document.getElementById('field-hora-fim').value = '';
             refreshDefaultTurno();
         }
     }
@@ -786,24 +783,49 @@ function setupForm() {
         displayTotal.value = diff.formatted;
     };
 
-    // Novos Botões de Registro de Tempo
-    const btnRecordInicio = document.getElementById('btn-record-inicio');
-    const btnRecordFim = document.getElementById('btn-record-fim');
-
-    btnRecordInicio.addEventListener('click', () => {
+    // Registro de Tempo ao clicar nos inputs
+    startField.addEventListener('click', () => {
         startField.value = getCurrentTime();
         updateCalculatedHours();
         saveFormCache();
     });
 
-    btnRecordFim.addEventListener('click', () => {
+    endField.addEventListener('click', () => {
         endField.value = getCurrentTime();
         updateCalculatedHours();
         saveFormCache();
     });
 
-    startField.addEventListener('input', updateCalculatedHours);
-    endField.addEventListener('input', updateCalculatedHours);
+    // Botões de Edição Manual
+    const btnManualInicio = document.getElementById('btn-manual-inicio');
+    const btnManualFim = document.getElementById('btn-manual-fim');
+
+    const handleManualEdit = (field) => {
+        const currentVal = field.value || getCurrentTime();
+        const newVal = prompt("Digite a hora (HH:MM):", currentVal);
+        if (newVal !== null && /^([01]\d|2[0-3]):?([0-5]\d)$/.test(newVal)) {
+            // Formata se o usuário esqueceu os dois pontos
+            let formatted = newVal;
+            if (!formatted.includes(':')) {
+                formatted = formatted.slice(0, 2) + ':' + formatted.slice(2);
+            }
+            field.value = formatted;
+            updateCalculatedHours();
+            saveFormCache();
+        } else if (newVal !== null) {
+            alert("Formato inválido. Use HH:MM");
+        }
+    };
+
+    btnManualInicio.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleManualEdit(startField);
+    });
+
+    btnManualFim.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleManualEdit(endField);
+    });
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
