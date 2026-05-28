@@ -783,28 +783,43 @@ function setupForm() {
         displayTotal.value = diff.formatted;
     };
 
-    // Registro de Tempo ao clicar nos inputs
-    startField.addEventListener('click', () => {
-        startField.value = getCurrentTime();
-        updateCalculatedHours();
-        saveFormCache();
-    });
+    // Lógica de Clique Curto e Longo para Horas
+    const setupTimeFieldEvents = (field) => {
+        let pressTimer;
+        let isLongPress = false;
 
-    endField.addEventListener('click', () => {
-        endField.value = getCurrentTime();
-        updateCalculatedHours();
-        saveFormCache();
-    });
+        const startPress = (e) => {
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                handleManualEdit(field);
+            }, 600); // 600ms para clique longo
+        };
 
-    // Botões de Edição Manual
-    const btnManualInicio = document.getElementById('btn-manual-inicio');
-    const btnManualFim = document.getElementById('btn-manual-fim');
+        const endPress = (e) => {
+            clearTimeout(pressTimer);
+            if (!isLongPress) {
+                field.value = getCurrentTime();
+                updateCalculatedHours();
+                saveFormCache();
+            }
+        };
+
+        field.addEventListener('mousedown', startPress);
+        field.addEventListener('mouseup', endPress);
+        field.addEventListener('touchstart', (e) => {
+            // e.preventDefault(); // Pode interferir no scroll
+            startPress(e);
+        }, { passive: true });
+        field.addEventListener('touchend', (e) => {
+            endPress(e);
+        }, { passive: true });
+    };
 
     const handleManualEdit = (field) => {
         const currentVal = field.value || getCurrentTime();
         const newVal = prompt("Digite a hora (HH:MM):", currentVal);
         if (newVal !== null && /^([01]\d|2[0-3]):?([0-5]\d)$/.test(newVal)) {
-            // Formata se o usuário esqueceu os dois pontos
             let formatted = newVal;
             if (!formatted.includes(':')) {
                 formatted = formatted.slice(0, 2) + ':' + formatted.slice(2);
@@ -817,15 +832,8 @@ function setupForm() {
         }
     };
 
-    btnManualInicio.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleManualEdit(startField);
-    });
-
-    btnManualFim.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleManualEdit(endField);
-    });
+    setupTimeFieldEvents(startField);
+    setupTimeFieldEvents(endField);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
