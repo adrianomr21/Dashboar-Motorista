@@ -9,7 +9,8 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - Contexto da jornada: Dia da semana (auto-calculado), Turno, Movimentação, Perfil de Passageiro, Aplicativo utilizado, Trânsito.
 - Controle de custos: Preço do combustível no dia.
 - Observações gerais.
-- **Cache Local:** Salva o rascunho do formulário automaticamente.
+- **Cache Local:** Salva o rascunho do formulário automaticamente (incluindo horários de início/fim).
+- **Reset Inteligente:** Limpa campos de ganhos e horários após o salvamento para novos registros.
 - **Gestão de Gastos:** Registro avulso de Acessórios, Manutenção, Revisão e Outros.
 
 ### 2. Dashboard de Performance
@@ -18,6 +19,11 @@ Um Progressive Web App (PWA) projetado para motoristas de aplicativo monitorarem
 - **Rankings:** Top 3 Dias mais lucrativos e Dia com maior eficiência (R$/km) por turno.
 - **Estatísticas de Trabalho:** Total de Horas e Dias trabalhados no período.
 - **Filtros Temporais:** Consulta por intervalo de datas.
+
+### 3. Feedback Imediato (Resumo Pós-Registro)
+- **Modal de Sucesso:** Exibição automática de um resumo profissional após cada salvamento.
+- **Métricas Chave:** Lucro Líquido (detalhando Ganhos, Combustível e Desgaste), Valor por KM e Valor por Hora.
+- **Contexto Rápido:** Visualização imediata da distância percorrida e tempo trabalhado.
 
 ### 3. Visualização de Dados (Gráficos)
 - Evolução de Ganhos diários.

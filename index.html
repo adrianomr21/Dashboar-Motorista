@@ -653,6 +653,55 @@
                 </div>
             </div>
         </div>
+
+        <!-- MODAL DE RESUMO DO REGISTRO (PÓS-SALVAMENTO) -->
+        <div id="modal-resumo-registro" class="modal-overlay" style="display: none;">
+            <div class="modal-content card summary-modal-content">
+                <div class="modal-header summary-header">
+                    <h3>🚀 Registro Concluído!</h3>
+                    <button id="closeSummaryBtn" class="close-btn">&times;</button>
+                </div>
+                
+                <div class="summary-body">
+                    <!-- Destaque Principal: Lucro Líquido -->
+                    <div class="summary-highlight-card profit-card">
+                        <p class="summary-label">LUCRO LÍQUIDO</p>
+                        <h2 id="resumo-lucro-liquido" class="summary-value">R$ 0,00</h2>
+                        <div class="summary-details-row">
+                            <span>Ganhos: <b id="resumo-ganhos">R$ 0,00</b></span>
+                            <span>Combustível: <b id="resumo-custo-combustivel" style="color: var(--danger-color)">R$ 0,00</b></span>
+                            <span>Custo Carro: <b id="resumo-custo-carro" style="color: var(--danger-color)">R$ 0,00</b></span>
+                        </div>
+                    </div>
+
+                    <div class="summary-grid">
+                        <!-- Valor por KM -->
+                        <div class="summary-mini-card">
+                            <p class="summary-label">VALOR POR KM</p>
+                            <h3 id="resumo-valor-km" class="summary-mini-value">R$ 0,00</h3>
+                            <div class="summary-mini-details">
+                                <span id="resumo-distancia">0.0 km rodados</span>
+                                <small id="resumo-km-faixa" style="color: #888;">0 → 0</small>
+                            </div>
+                        </div>
+
+                        <!-- Valor por Hora -->
+                        <div class="summary-mini-card">
+                            <p class="summary-label">VALOR POR HORA</p>
+                            <h3 id="resumo-valor-hora" class="summary-mini-value">R$ 0,00</h3>
+                            <div class="summary-mini-details">
+                                <span id="resumo-tempo-total">0h00 trabalhadas</span>
+                                <small id="resumo-hora-faixa" style="color: #888;">--:-- → --:--</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-footer" style="margin-top: 20px;">
+                    <button id="closeSummaryFooterBtn" class="primary-btn full-width">ENTENDI, CONTINUAR</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <div id="loader" class="loader-overlay" style="display: none;">

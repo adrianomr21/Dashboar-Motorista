@@ -1044,3 +1044,96 @@ th {
     }
 }
 
+/* --- ESTILO MODAL DE RESUMO (PÓS-REGISTRO) --- */
+.summary-modal-content {
+    background: #1a1a1a !important;
+    border: 1px solid #333 !important;
+    padding: 25px !important;
+    border-radius: 20px !important;
+    text-align: center;
+}
+
+.summary-header h3 {
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    width: 100%;
+}
+
+.summary-body {
+    margin-top: 20px;
+}
+
+.summary-highlight-card {
+    background: linear-gradient(145deg, #252525, #1e1e1e);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #333;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.profit-card {
+    border-top: 4px solid var(--success-color);
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: #888;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.summary-value {
+    font-size: 2.2rem !important;
+    color: var(--success-color) !important;
+    margin: 10px 0;
+}
+
+.summary-details-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #ccc;
+    border-top: 1px solid #333;
+    padding-top: 15px;
+    margin-top: 5px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.summary-mini-card {
+    background: #252525;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #333;
+}
+
+.summary-mini-value {
+    color: var(--primary-color) !important;
+    font-size: 1.3rem !important;
+    margin: 5px 0;
+}
+
+.summary-mini-details {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    color: #aaa;
+    gap: 2px;
+}
+
+.text-danger { color: var(--danger-color); }
+.text-muted { color: #666; }
+
+.summary-footer .primary-btn {
+    height: 55px;
+    font-size: 1.1rem;
+    margin-top: 10px;
+}
+

@@ -196,13 +196,17 @@ function initApp() {
     document.getElementById('cancelEditBtn').onclick = () => resetCadastroForm();
     document.getElementById('closeModalBtn').onclick = () => closeModal();
     document.getElementById('closeModalFooterBtn').onclick = () => closeModal();
+    document.getElementById('closeSummaryBtn').onclick = () => closeSummaryModal();
+    document.getElementById('closeSummaryFooterBtn').onclick = () => closeSummaryModal();
     window.onclick = (event) => {
         const modalDet = document.getElementById('modal-detalhes');
         const modalAbs = document.getElementById('modal-abastecimento');
         const modalGasto = document.getElementById('modal-gasto-geral');
+        const modalSummary = document.getElementById('modal-resumo-registro');
         if (event.target == modalDet) closeModal();
         if (event.target == modalAbs) closeAbastecimentoModal();
         if (event.target == modalGasto) closeGastoGeralModal();
+        if (event.target == modalSummary) closeSummaryModal();
     };
     // Lógica de Importação
     const btnImport = document.getElementById('btnShowImport');
@@ -924,7 +928,14 @@ async function saveToFirebase() {
             await addDoc(collection(db, "registros"), dataDoc);
             // Salva como último registro para facilitar o próximo preenchimento
             localStorage.setItem(LAST_ENTRY_KEY, JSON.stringify(dataDoc));
-            alert('✅ Dados salvos!');
+            
+            // Busca manutenções para o cálculo do resumo
+            const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+            const manutSnap = await getDocs(qManut);
+            const manuts = [];
+            manutSnap.forEach(d => manuts.push(d.data()));
+            
+            showSummaryModal(dataDoc, manuts);
         }
 
         // Limpa formulário e atualiza alertas
@@ -936,6 +947,42 @@ async function saveToFirebase() {
     } finally {
         showLoader(false);
     }
+}
+
+function showSummaryModal(data, manuts) {
+    const modal = document.getElementById('modal-resumo-registro');
+    
+    // Cálculos
+    const gastoComb = calculateFuelCost(data.km_total, data.preco_combustivel, userConfig.consumoMedio);
+    const gastoCarro = calculateVariableKmCosts(data.km_total, userConfig, manuts);
+    const custosTotais = gastoComb + gastoCarro;
+    const lucroLiquido = data.dinheiro - custosTotais;
+    
+    const valPorKm = data.km_total > 0 ? (data.dinheiro / data.km_total) : 0;
+    const valPorHora = data.horas > 0 ? (data.dinheiro / data.horas) : 0;
+
+    // Popular campos
+    document.getElementById('resumo-lucro-liquido').textContent = formatCurrency(lucroLiquido);
+    document.getElementById('resumo-ganhos').textContent = formatCurrency(data.dinheiro);
+    document.getElementById('resumo-custo-combustivel').textContent = formatCurrency(gastoComb);
+    document.getElementById('resumo-custo-carro').textContent = formatCurrency(gastoCarro);
+    
+    document.getElementById('resumo-valor-km').textContent = formatCurrency(valPorKm);
+    document.getElementById('resumo-distancia').textContent = `${data.km_total.toFixed(1)} km rodados`;
+    document.getElementById('resumo-km-faixa').textContent = `${data.km_inicial} → ${data.km_final}`;
+    
+    document.getElementById('resumo-valor-hora').textContent = formatCurrency(valPorHora);
+    document.getElementById('resumo-tempo-total').textContent = `${formatDecimalHours(data.horas)} trabalhadas`;
+    document.getElementById('resumo-hora-faixa').textContent = `${data.hora_inicio} → ${data.hora_fim}`;
+
+    // Estilo do Lucro
+    document.getElementById('resumo-lucro-liquido').style.color = lucroLiquido >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+
+    modal.style.display = 'flex';
+}
+
+function closeSummaryModal() {
+    document.getElementById('modal-resumo-registro').style.display = 'none';
 }
 
 function resetCadastroForm() {
