@@ -34,6 +34,7 @@ let userConfig = DEFAULT_CONFIG;
 let currentTab = 'cadastro';
 const CACHE_KEY = 'driver_dash_form_cache';
 const LAST_ENTRY_KEY = 'driver_dash_last_entry';
+const ACTIVE_SHIFT_KEY = 'driver_dash_active_shift';
 
 // Elementos da UI
 const sections = {
@@ -193,7 +194,23 @@ function initApp() {
     document.getElementById('form-config').onsubmit = (e) => saveUserConfig(e);
     document.getElementById('form-manutencao').onsubmit = (e) => saveManutencao(e);
     document.getElementById('cancelManutBtn').onclick = () => resetManutForm();
-    document.getElementById('cancelEditBtn').onclick = () => resetCadastroForm();
+    document.getElementById('cancelEditBtn').onclick = () => {
+        const isEditing = !!document.getElementById('field-id').value;
+        const activeShift = localStorage.getItem(ACTIVE_SHIFT_KEY);
+        
+        if (isEditing) {
+            resetCadastroForm();
+        } else if (activeShift) {
+            if (confirm('Deseja voltar para o expediente em andamento? (A hora de encerramento será limpa)')) {
+                document.getElementById('field-hora-fim').value = '';
+                document.getElementById('display-horas-total').value = '0:00';
+                saveFormCache();
+                updateFormStateUI();
+            }
+        } else {
+            resetCadastroForm();
+        }
+    };
     document.getElementById('closeModalBtn').onclick = () => closeModal();
     document.getElementById('closeModalFooterBtn').onclick = () => closeModal();
     document.getElementById('closeSummaryBtn').onclick = () => closeSummaryModal();
@@ -322,17 +339,13 @@ function switchTab(target) {
         }
     });
 
-    // Se entrar na aba de cadastro e não estiver editando, garante data/hora atualizadas
+    // Se entrar na aba de cadastro:
     if (target === 'cadastro') {
         const id = document.getElementById('field-id').value;
         if (!id) {
-            document.getElementById('field-data').value = getLocalDate();
-            updateDayOfWeek();
-            // A hora de início e fim iniciam vazias para exibir o placeholder "PRESSIONE PARA REGISTRAR"
-            document.getElementById('field-hora-inicio').value = '';
-            document.getElementById('field-hora-fim').value = '';
-            refreshDefaultTurno();
+            loadFormCache();
         }
+        updateFormStateUI();
     }
 
     // Mostra filtros globais apenas no Dashboard, Abastecimento e Relatório
@@ -736,6 +749,89 @@ async function deleteAbastecimento(id) {
     }
 }
 
+// Atualiza a visibilidade das seções do formulário baseado no estado do expediente
+function updateFormStateUI() {
+    const isEditing = !!document.getElementById('field-id').value;
+    const activeShiftStr = localStorage.getItem(ACTIVE_SHIFT_KEY);
+    const activeShift = activeShiftStr ? JSON.parse(activeShiftStr) : null;
+    const horaFim = document.getElementById('field-hora-fim').value;
+
+    const cardAndamento = document.getElementById('card-expediente-andamento');
+    const kmInicialContainer = document.getElementById('section-km-inicial-container');
+    const btnIniciar = document.getElementById('btn-iniciar-expediente');
+    const btnParar = document.getElementById('btn-parar-expediente');
+    const sectionDadosFinalizar = document.getElementById('section-dados-finalizar');
+
+    if (!cardAndamento || !kmInicialContainer || !btnIniciar || !btnParar || !sectionDadosFinalizar) {
+        console.warn('Elementos da interface de expediente não encontrados.');
+        return;
+    }
+
+    if (isEditing) {
+        // MODO EDIÇÃO DE REGISTRO EXISTENTE
+        cardAndamento.style.display = 'none';
+        kmInicialContainer.style.display = 'block';
+        btnIniciar.style.display = 'none';
+        btnParar.style.display = 'none';
+        sectionDadosFinalizar.style.display = 'block';
+        
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        if (cancelBtn) {
+            cancelBtn.style.display = 'block';
+            cancelBtn.textContent = 'Cancelar';
+        }
+        document.getElementById('saveBtn').textContent = 'Atualizar Registro';
+    } else if (activeShift) {
+        // TEM EXPEDIENTE ATIVO
+        if (horaFim) {
+            // Clicou em "Parar" e está finalizando o preenchimento
+            cardAndamento.style.display = 'none';
+            kmInicialContainer.style.display = 'block';
+            btnIniciar.style.display = 'none';
+            btnParar.style.display = 'none';
+            sectionDadosFinalizar.style.display = 'block';
+            
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            if (cancelBtn) {
+                cancelBtn.style.display = 'block';
+                cancelBtn.textContent = 'Voltar';
+            }
+            document.getElementById('saveBtn').textContent = 'Salvar Registro';
+        } else {
+            // Expediente iniciado mas não finalizado (Em Andamento)
+            const parts = activeShift.data.split('-');
+            const dataFormatada = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : activeShift.data;
+            document.getElementById('info-expediente-data').textContent = dataFormatada;
+            document.getElementById('info-expediente-hora').textContent = activeShift.hora_inicio;
+            document.getElementById('info-expediente-km').textContent = `${activeShift.km_inicial.toFixed(1)} km`;
+
+            cardAndamento.style.display = 'block';
+            kmInicialContainer.style.display = 'none';
+            btnIniciar.style.display = 'none';
+            btnParar.style.display = 'block';
+            sectionDadosFinalizar.style.display = 'none';
+            
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            if (cancelBtn) {
+                cancelBtn.style.display = 'none';
+            }
+        }
+    } else {
+        // EXPEDIENTE NÃO INICIADO
+        cardAndamento.style.display = 'none';
+        kmInicialContainer.style.display = 'block';
+        btnIniciar.style.display = 'block';
+        btnParar.style.display = 'none';
+        sectionDadosFinalizar.style.display = 'none';
+        
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        if (cancelBtn) {
+            cancelBtn.style.display = 'none';
+        }
+        document.getElementById('saveBtn').textContent = 'Salvar Registro';
+    }
+}
+
 // Gerenciamento do Formulário
 function setupForm() {
     const form = document.getElementById('form-cadastro');
@@ -775,9 +871,9 @@ function setupForm() {
     if (!idField.value) {
         dateField.value = getLocalDate();
         updateDayOfWeek();
-        // A hora de início e fim agora começam vazias conforme solicitado
-        if (!startField.value) startField.value = '';
-        if (!endField.value) endField.value = '';
+        
+        //if (!startField.value) startField.value = '';
+        //if (!endField.value) endField.value = '';
         refreshDefaultTurno();
     }
 
@@ -847,6 +943,58 @@ function setupForm() {
     form.querySelectorAll('input, select, textarea').forEach(field => {
         field.addEventListener('input', saveFormCache);
     });
+
+    // Evento de Iniciar Expediente
+    document.getElementById('btn-iniciar-expediente').addEventListener('click', () => {
+        const kmInicialVal = parseFloat(document.getElementById('field-km-inicial').value);
+        if (isNaN(kmInicialVal) || kmInicialVal < 0) {
+            alert('⚠️ Por favor, preencha o KM Inicial com um valor válido antes de iniciar o expediente.');
+            document.getElementById('field-km-inicial').focus();
+            return;
+        }
+
+        const activeShift = {
+            data: getLocalDate(),
+            hora_inicio: getCurrentTime(),
+            km_inicial: kmInicialVal
+        };
+        localStorage.setItem(ACTIVE_SHIFT_KEY, JSON.stringify(activeShift));
+
+        // Preenche os campos reais do formulário
+        document.getElementById('field-data').value = activeShift.data;
+        updateDayOfWeek();
+        document.getElementById('field-hora-inicio').value = activeShift.hora_inicio;
+        
+        // Salva no cache do formulário também
+        saveFormCache();
+        
+        // Atualiza a interface
+        updateFormStateUI();
+    });
+
+    // Evento de Parar Expediente
+    document.getElementById('btn-parar-expediente').addEventListener('click', () => {
+        const activeShiftStr = localStorage.getItem(ACTIVE_SHIFT_KEY);
+        if (!activeShiftStr) return;
+        const activeShift = JSON.parse(activeShiftStr);
+
+        // Preenche a hora de fim com a hora atual
+        const horaFim = getCurrentTime();
+        document.getElementById('field-hora-fim').value = horaFim;
+        
+        // Atualiza o display de horas totais
+        const diff = calculateTimeDiff(activeShift.hora_inicio, horaFim);
+        document.getElementById('display-horas-total').value = diff.formatted;
+
+        // Configura o turno padrão com base na hora atual de encerramento
+        refreshDefaultTurno();
+
+        // Salva o progresso do formulário no cache
+        saveFormCache();
+
+        // Atualiza a interface (agora com hora-fim preenchida, vai mostrar a tela de finalização)
+        updateFormStateUI();
+    });
 }
 
 function updateDayOfWeek() {
@@ -884,6 +1032,26 @@ function loadFormCache() {
             }
         });
     }
+
+    // Sobrescreve com o expediente ativo se ele existir no localStorage
+    const activeShiftStr = localStorage.getItem(ACTIVE_SHIFT_KEY);
+    if (activeShiftStr) {
+        const activeShift = JSON.parse(activeShiftStr);
+        document.getElementById('field-data').value = activeShift.data;
+        updateDayOfWeek();
+        document.getElementById('field-km-inicial').value = activeShift.km_inicial;
+        document.getElementById('field-hora-inicio').value = activeShift.hora_inicio;
+        
+        // Se tiver hora fim preenchida, calcula as horas totais
+        const horaFim = document.getElementById('field-hora-fim').value;
+        if (horaFim) {
+            const diff = calculateTimeDiff(activeShift.hora_inicio, horaFim);
+            document.getElementById('display-horas-total').value = diff.formatted;
+        } else {
+            document.getElementById('display-horas-total').value = '0:00';
+        }
+    }
+    updateFormStateUI();
 }
 
 async function saveToFirebase() {
@@ -936,11 +1104,15 @@ async function saveToFirebase() {
             manutSnap.forEach(d => manuts.push(d.data()));
             
             showSummaryModal(dataDoc, manuts);
+            
+            // Remove o expediente ativo apenas se for um novo registro
+            localStorage.removeItem(ACTIVE_SHIFT_KEY);
         }
 
         // Limpa formulário e atualiza alertas
         resetCadastroForm();
         checkMaintenanceAlerts(); // Atualiza alertas imediatamente após salvar
+        updateFormStateUI();
     } catch (e) {
         console.error("Erro ao salvar: ", e);
         alert('❌ Erro ao salvar dados.');
@@ -988,42 +1160,66 @@ function closeSummaryModal() {
 function resetCadastroForm() {
     const form = document.getElementById('form-cadastro');
     const lastEntry = localStorage.getItem(LAST_ENTRY_KEY);
+    const cashEntry2 = localStorage.getItem(CACHE_KEY);
+    const activeShiftStr = localStorage.getItem(ACTIVE_SHIFT_KEY);
     
     form.reset();
     document.getElementById('field-id').value = '';
     document.getElementById('saveBtn').textContent = 'Salvar';
     document.getElementById('cancelEditBtn').style.display = 'none';
 
-    // Se houver um registro anterior, pré-preenche alguns campos (conforme solicitado, hora e turno não são mais recuperados)
-    if (lastEntry) {
-        const data = JSON.parse(lastEntry);
-        document.getElementById('field-km-inicial').value = data.km_final || '';
-        document.getElementById('field-km-final').value = '';
-        document.getElementById('field-dinheiro').value = '';
-        document.getElementById('field-hora-inicio').value = ''; // Inicia vazio conforme solicitado
+    if (activeShiftStr) {
+        const activeShift = JSON.parse(activeShiftStr);
+        document.getElementById('field-data').value = activeShift.data;
+        updateDayOfWeek();
+        document.getElementById('field-km-inicial').value = activeShift.km_inicial;
+        document.getElementById('field-hora-inicio').value = activeShift.hora_inicio;
         document.getElementById('field-hora-fim').value = '';
         document.getElementById('display-horas-total').value = '0:00';
-        document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
-        document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
-        document.getElementById('field-app').value = data.app || 'Uber';
-        document.getElementById('field-transito').value = data.transito || 'Moderado';
         
-        // Formata o preço do combustível para "0,00" se existir
-        const precoComb = data.preco_combustivel;
-        document.getElementById('field-combustivel').value = precoComb ? precoComb.toFixed(2).replace('.', ',') : '';
-        
-        document.getElementById('field-obs').value = '';
+        // Preenche os outros campos com o histórico
+        if (lastEntry) {
+            const data = JSON.parse(lastEntry);
+            document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
+            document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
+            document.getElementById('field-app').value = data.app || 'Uber';
+            document.getElementById('field-transito').value = data.transito || 'Moderado';
+            
+            const precoComb = data.preco_combustivel;
+            document.getElementById('field-combustivel').value = precoComb ? precoComb.toFixed(2).replace('.', ',') : '';
+        }
     } else {
-        document.getElementById('field-hora-inicio').value = '';
-        document.getElementById('field-hora-fim').value = '';
-        document.getElementById('display-horas-total').value = '0:00';
+        // Fluxo padrão sem expediente ativo
+        if (lastEntry) {
+            const data = JSON.parse(lastEntry);
+            const datacash2 = JSON.parse(cashEntry2);
+            document.getElementById('field-km-inicial').value = data.km_final || datacash2['field-km-inicial'] || '';
+            document.getElementById('field-km-final').value = '';
+            document.getElementById('field-dinheiro').value = '';
+            document.getElementById('field-hora-inicio').value = '';
+            document.getElementById('field-hora-fim').value = '';
+            document.getElementById('display-horas-total').value = '0:00';
+            document.getElementById('field-movimentacao').value = data.movimentacao || 'Média';
+            document.getElementById('field-perfil').value = data.perfil_passageiro || 'Trabalhador';
+            document.getElementById('field-app').value = data.app || 'Uber';
+            document.getElementById('field-transito').value = data.transito || 'Moderado';
+            
+            const precoComb = data.preco_combustivel;
+            document.getElementById('field-combustivel').value = precoComb ? precoComb.toFixed(2).replace('.', ',') : '';
+            document.getElementById('field-obs').value = '';
+        } else {
+            document.getElementById('field-hora-inicio').value = '';
+            document.getElementById('field-hora-fim').value = '';
+            document.getElementById('display-horas-total').value = '0:00';
+        }
+        
+        document.getElementById('field-data').value = getLocalDate();
+        updateDayOfWeek();
+        refreshDefaultTurno();
     }
     
-    // Data, Turno e Dia da Semana sempre atuais (Fuso SP)
-    document.getElementById('field-data').value = getLocalDate();
-    updateDayOfWeek();
-    refreshDefaultTurno();
     saveFormCache();
+    updateFormStateUI();
 }
 
 // Dashboard e Filtros
@@ -1401,6 +1597,7 @@ function editRecord(item) {
     
     document.getElementById('saveBtn').textContent = 'Atualizar Registro';
     document.getElementById('cancelEditBtn').style.display = 'block';
+    updateFormStateUI();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
