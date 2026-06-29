@@ -32,6 +32,10 @@ let charts = {};
 let currentUser = null;
 let userConfig = DEFAULT_CONFIG;
 let currentTab = 'cadastro';
+let localVeiculos = [];
+let localCartoes = [];
+let selectedVeiculoIdHist = null;
+let selectedCartaoIdHist = null;
 const CACHE_KEY = 'driver_dash_form_cache';
 const LAST_ENTRY_KEY = 'driver_dash_last_entry';
 const ACTIVE_SHIFT_KEY = 'driver_dash_active_shift';
@@ -217,14 +221,16 @@ function initApp() {
     const btnNovoAbsHist = document.getElementById('btnNovoAbsHist');
     if (btnNovoAbsHist) btnNovoAbsHist.onclick = () => {
         document.getElementById('modal-historico-abastecimento').style.display = 'none';
-        openAbastecimentoModal();
+        openAbastecimentoModal(null, selectedVeiculoIdHist);
     };
 
     const btnNovoGastoHist = document.getElementById('btnNovoGastoHist');
     if (btnNovoGastoHist) btnNovoGastoHist.onclick = () => {
         document.getElementById('modal-historico-outros-gastos').style.display = 'none';
-        openGastoGeralModal();
+        openGastoGeralModal(null, selectedCartaoIdHist);
     };
+
+    setupNovasFinancas();
 
     const btnAddRevisao = document.getElementById('btnAddRevisaoFinancas');
     if (btnAddRevisao) {
@@ -351,8 +357,9 @@ async function saveUserConfig(e) {
     };
 
     try {
-        await setDoc(doc(db, "configs", currentUser.uid), newConfig);
-        userConfig = newConfig;
+        const mergedConfig = { ...userConfig, ...newConfig };
+        await setDoc(doc(db, "configs", currentUser.uid), mergedConfig);
+        userConfig = mergedConfig;
         alert('✅ Configurações salvas!');
     } catch (e) {
         console.error("Erro ao salvar config:", e);
@@ -489,7 +496,8 @@ function setupAbastecimento() {
     kmAnteriorInput.addEventListener('input', updateCalculations);
     kmAtualInput.addEventListener('input', updateCalculations);
 
-    document.getElementById('btnAddAbastecimento').onclick = () => openAbastecimentoModal();
+    const btnAddAbs = document.getElementById('btnAddAbastecimento');
+    if (btnAddAbs) btnAddAbs.onclick = () => openAbastecimentoModal();
     document.getElementById('closeAbastecimentoBtn').onclick = () => closeAbastecimentoModal();
     document.getElementById('closeAbsFooterBtn').onclick = () => closeAbastecimentoModal();
 
@@ -509,7 +517,9 @@ function setupGastoGeral() {
     const parceladoCheckbox = document.getElementById('gasto-parcelado');
 
     pagamentoSelect.addEventListener('change', () => {
-        if (pagamentoSelect.value === 'Cartão de Crédito') {
+        const cartaoId = pagamentoSelect.value;
+        const cartaoObj = localCartoes.find(c => c.id === cartaoId);
+        if (cartaoObj && cartaoObj.permite_parcelamento) {
             parceladoContainer.style.display = 'flex';
         } else {
             parceladoContainer.style.display = 'none';
@@ -541,7 +551,8 @@ function setupGastoGeral() {
 
     applyMask(valorInput, 2);
 
-    document.getElementById('btnAddGastoGeral').onclick = () => openGastoGeralModal();
+    const btnAddGasto = document.getElementById('btnAddGastoGeral');
+    if (btnAddGasto) btnAddGasto.onclick = () => openGastoGeralModal();
 
     document.getElementById('closeGastoGeralBtn').onclick = () => closeGastoGeralModal();
     document.getElementById('closeGastoFooterBtn').onclick = () => closeGastoGeralModal();
@@ -552,7 +563,7 @@ function setupGastoGeral() {
     };
 }
 
-async function openGastoGeralModal(data = null) {
+async function openGastoGeralModal(data = null, preSelectedCartaoId = null) {
     const modal = document.getElementById('modal-gasto-geral');
     const form = document.getElementById('form-gasto-geral');
     form.reset();
@@ -569,9 +580,11 @@ async function openGastoGeralModal(data = null) {
         document.getElementById('gasto-descricao').value = data.descricao;
         document.getElementById('gasto-valor').value = data.valor.toFixed(2).replace('.', ',');
         
-        const fp = data.forma_pagamento || "Dinheiro";
-        pagamentoSelect.value = fp;
-        if (fp === 'Cartão de Crédito') {
+        const targetCartaoId = data.cartao_id || "";
+        pagamentoSelect.value = targetCartaoId;
+        
+        const cartaoObj = localCartoes.find(c => c.id === targetCartaoId);
+        if (cartaoObj && cartaoObj.permite_parcelamento) {
             parceladoContainer.style.display = 'flex';
             parceladoCheckbox.checked = data.parcelado || false;
             if (data.parcelado) {
@@ -591,12 +604,21 @@ async function openGastoGeralModal(data = null) {
     } else {
         document.getElementById('gasto-id').value = '';
         document.getElementById('gasto-data').value = getLocalDate();
-        pagamentoSelect.value = 'Dinheiro';
+        
+        if (preSelectedCartaoId) {
+            pagamentoSelect.value = preSelectedCartaoId;
+        } else if (localCartoes.length > 0) {
+            const dinheiroCard = localCartoes.find(c => c.nome === 'Dinheiro');
+            pagamentoSelect.value = dinheiroCard ? dinheiroCard.id : localCartoes[0].id;
+        }
+        
         parceladoContainer.style.display = 'none';
         parceladoCheckbox.checked = false;
         numParcelasContainer.style.display = 'none';
         document.getElementById('gasto-num-parcelas').value = 1;
         document.querySelector('#modal-gasto-geral h3').textContent = '💸 Registrar Gasto';
+        
+        pagamentoSelect.dispatchEvent(new Event('change'));
     }
     modal.style.display = 'flex';
 }
@@ -609,8 +631,11 @@ async function saveGastoGeral() {
     showLoader(true, 'Salvando gasto...');
     const id = document.getElementById('gasto-id').value;
     const valorVal = parseFloat(document.getElementById('gasto-valor').value.replace(',', '.')) || 0;
-    const fp = document.getElementById('gasto-pagamento').value;
-    const parcelado = fp === 'Cartão de Crédito' && document.getElementById('gasto-parcelado').checked;
+    const cartaoId = document.getElementById('gasto-pagamento').value;
+    const cartaoObj = localCartoes.find(c => c.id === cartaoId);
+    const fpNome = cartaoObj ? cartaoObj.nome : 'Dinheiro';
+    const permiteParcelas = cartaoObj ? cartaoObj.permite_parcelamento : false;
+    const parcelado = permiteParcelas && document.getElementById('gasto-parcelado').checked;
     const numParcelas = parcelado ? (parseInt(document.getElementById('gasto-num-parcelas').value) || 1) : 1;
     const descOriginal = document.getElementById('gasto-descricao').value;
     const dataOriginalStr = document.getElementById('gasto-data').value;
@@ -618,13 +643,13 @@ async function saveGastoGeral() {
 
     try {
         if (id) {
-            // Se for edição, atualiza apenas o documento da parcela ou gasto individual
             const updateData = {
                 data: dataOriginalStr,
                 tipo: tipoGasto,
                 descricao: descOriginal,
                 valor: valorVal,
-                forma_pagamento: fp,
+                forma_pagamento: fpNome,
+                cartao_id: cartaoId,
                 parcelado: parcelado,
                 num_parcelas: numParcelas,
                 uid: currentUser.uid,
@@ -632,7 +657,6 @@ async function saveGastoGeral() {
             };
             await updateDoc(doc(db, "gastos_gerais", id), updateData);
         } else {
-            // Criação de novos documentos
             if (parcelado && numParcelas > 1) {
                 const grupoId = 'g_' + new Date().getTime();
                 const baseVal = Math.floor((valorVal / numParcelas) * 100) / 100;
@@ -653,7 +677,8 @@ async function saveGastoGeral() {
                         tipo: tipoGasto,
                         descricao: `${descOriginal} (${i}/${numParcelas})`,
                         valor: valParc,
-                        forma_pagamento: 'Cartão de Crédito',
+                        forma_pagamento: fpNome,
+                        cartao_id: cartaoId,
                         parcelado: true,
                         parcela_numero: i,
                         num_parcelas: numParcelas,
@@ -665,16 +690,16 @@ async function saveGastoGeral() {
                     await addDoc(collection(db, "gastos_gerais"), dataGasto);
                 }
             } else {
-                // Gasto à vista (Pix, dinheiro, débito ou cartão de crédito à vista)
                 const dataGasto = {
                     data: dataOriginalStr,
                     tipo: tipoGasto,
                     descricao: descOriginal,
                     valor: valorVal,
-                    forma_pagamento: fp,
+                    forma_pagamento: fpNome,
+                    cartao_id: cartaoId,
                     parcelado: false,
                     num_parcelas: 1,
-                    pago: fp !== 'Cartão de Crédito', // Cartão à vista começa como não pago (pendente fatura)
+                    pago: !permiteParcelas,
                     uid: currentUser.uid,
                     createdAt: new Date()
                 };
@@ -697,10 +722,13 @@ async function saveGastoGeral() {
     }
 }
 
-async function openAbastecimentoModal(data = null) {
+async function openAbastecimentoModal(data = null, preSelectedVeiculoId = null) {
     const modal = document.getElementById('modal-abastecimento');
     const form = document.getElementById('form-abastecimento');
     form.reset();
+    
+    // Certifica-se de popular o select de veículos antes
+    popularSelectVeiculos();
     
     if (data) {
         document.getElementById('abs-id').value = data.id;
@@ -709,6 +737,8 @@ async function openAbastecimentoModal(data = null) {
         document.getElementById('abs-km-atual').value = data.km_atual || 0;
         document.getElementById('abs-valor-total').value = data.valor_total.toFixed(2).replace('.', ',');
         document.getElementById('abs-preco-litro').value = data.preco_litro.toFixed(2).replace('.', ',');
+        
+        document.getElementById('abs-veiculo-id').value = data.veiculo_id || "";
         
         const litros = data.valor_total / data.preco_litro;
         document.getElementById('abs-litros').value = litros.toFixed(2).replace('.', ',') + ' L';
@@ -728,21 +758,34 @@ async function openAbastecimentoModal(data = null) {
         document.getElementById('abs-consumo-kml').value = '0,0';
         document.querySelector('#modal-abastecimento h3').textContent = '⛽ Registrar Abastecimento';
         
-        // Busca o último KM registrado
+        if (preSelectedVeiculoId) {
+            document.getElementById('abs-veiculo-id').value = preSelectedVeiculoId;
+        } else if (localVeiculos.length > 0) {
+            document.getElementById('abs-veiculo-id').value = localVeiculos[0].id;
+        }
+        
         showLoader(true, 'Buscando KM anterior...');
         try {
-            // Verifica maior KM em registros de viagens
-            const qReg = query(collection(db, "registros"), where("uid", "==", currentUser.uid), orderBy("km_final", "desc"), limit(1));
-            const snapReg = await getDocs(qReg);
             let lastKm = 0;
-            if (!snapReg.empty) lastKm = snapReg.docs[0].data().km_final || 0;
+            const currentVeiculoId = document.getElementById('abs-veiculo-id').value;
+            if (currentVeiculoId) {
+                const qAbs = query(
+                    collection(db, "abastecimentos"),
+                    where("uid", "==", currentUser.uid),
+                    where("veiculo_id", "==", currentVeiculoId),
+                    orderBy("km_atual", "desc"),
+                    limit(1)
+                );
+                const snapAbs = await getDocs(qAbs);
+                if (!snapAbs.empty) {
+                    lastKm = snapAbs.docs[0].data().km_atual || 0;
+                }
+            }
 
-            // Verifica maior KM em abastecimentos
-            const qAbs = query(collection(db, "abastecimentos"), where("uid", "==", currentUser.uid), orderBy("km_atual", "desc"), limit(1));
-            const snapAbs = await getDocs(qAbs);
-            if (!snapAbs.empty) {
-                const absKm = snapAbs.docs[0].data().km_atual || 0;
-                if (absKm > lastKm) lastKm = absKm;
+            if (lastKm === 0) {
+                const qReg = query(collection(db, "registros"), where("uid", "==", currentUser.uid), orderBy("km_final", "desc"), limit(1));
+                const snapReg = await getDocs(qReg);
+                if (!snapReg.empty) lastKm = snapReg.docs[0].data().km_final || 0;
             }
 
             document.getElementById('abs-km-anterior').value = lastKm;
@@ -768,6 +811,7 @@ async function saveAbastecimento() {
     const precoVal = parseFloat(document.getElementById('abs-preco-litro').value.replace(',', '.')) || 0;
     const kmAnt = parseFloat(document.getElementById('abs-km-anterior').value) || 0;
     const kmAtu = parseFloat(document.getElementById('abs-km-atual').value) || 0;
+    const veiculoId = document.getElementById('abs-veiculo-id').value;
 
     const data = {
         data: document.getElementById('abs-data').value,
@@ -775,6 +819,7 @@ async function saveAbastecimento() {
         preco_litro: precoVal,
         km_anterior: kmAnt,
         km_atual: kmAtu,
+        veiculo_id: veiculoId,
         uid: currentUser.uid,
         timestamp: new Date()
     };
@@ -784,6 +829,24 @@ async function saveAbastecimento() {
             await updateDoc(doc(db, "abastecimentos", id), data);
         } else {
             await addDoc(collection(db, "abastecimentos"), data);
+            
+            // Atualizar o km_atual do veículo na config se for maior
+            if (userConfig.veiculos && Array.isArray(userConfig.veiculos)) {
+                let alterado = false;
+                userConfig.veiculos = userConfig.veiculos.map(v => {
+                    if (v.id === veiculoId) {
+                        const currentVeiculoKm = parseFloat(v.km_atual) || 0;
+                        if (kmAtu > currentVeiculoKm) {
+                            alterado = true;
+                            return { ...v, km_atual: kmAtu };
+                        }
+                    }
+                    return v;
+                });
+                if (alterado) {
+                    await setDoc(doc(db, "configs", currentUser.uid), userConfig);
+                }
+            }
         }
         closeAbastecimentoModal();
         if (currentTab === 'abastecimento') {
@@ -791,7 +854,7 @@ async function saveAbastecimento() {
         } else {
             await loadAbastecimentos();
         }
-        if (currentTab === 'dashboard') loadDashboardData(); // Atualiza dashboard se estiver lá
+        if (currentTab === 'dashboard') loadDashboardData();
     } catch (e) {
         console.error("Erro ao salvar abastecimento:", e);
         alert('Erro ao salvar abastecimento.');
@@ -1969,7 +2032,7 @@ async function saveManutencao(e) {
         }
         resetManutForm();
         await loadManutencoes();
-        if (currentTab === 'abastecimento') {
+        if (currentTab === 'abastecimento' || currentTab === 'financas') {
             await loadFinancas();
         }
         checkMaintenanceAlerts(); // Re-verifica alertas ao mudar config
@@ -1991,7 +2054,7 @@ async function deleteManutencao(id) {
     } finally {
         showLoader(false);
         loadManutencoes();
-        if (currentTab === 'abastecimento') {
+        if (currentTab === 'abastecimento' || currentTab === 'financas') {
             await loadFinancas();
         }
         checkMaintenanceAlerts();
@@ -2384,7 +2447,10 @@ async function loadFinancas() {
         const start = document.getElementById('startDate').value;
         const end = document.getElementById('endDate').value;
 
-        // 1. Obter Odômetro Atual (Maior KM final registrado)
+        // 1. Garantir veículos e cartões básicos cadastrados (migração/inicialização silenciosa)
+        await verificarEMigrarDadosPadrao();
+
+        // 2. Obter Odômetro Atual (Maior KM final registrado)
         const qLast = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
         const lastSnap = await getDocs(qLast);
         let currentKm = 0;
@@ -2395,13 +2461,22 @@ async function loadFinancas() {
             });
         }
 
-        // 2. Buscar Abastecimentos do período
+        // 3. Obter Veículos do usuário (da config local)
+        localVeiculos = userConfig.veiculos || [];
+
+        // 4. Obter Cartões do usuário (da config local)
+        localCartoes = userConfig.cartoes || [];
+
+        // Atualizar seletores nos formulários de cadastro
+        popularSelectVeiculos();
+        popularSelectCartoes();
+
+        // 5. Buscar Abastecimentos do período (1 única query)
         const qAbs = query(
             collection(db, "abastecimentos"),
             where("uid", "==", currentUser.uid),
             where("data", ">=", start),
-            where("data", "<=", end),
-            orderBy("data", "desc")
+            where("data", "<=", end)
         );
         const absSnap = await getDocs(qAbs);
         const abastecimentos = [];
@@ -2412,7 +2487,7 @@ async function loadFinancas() {
             totalAbsVal += parseFloat(data.valor_total) || 0;
         });
 
-        // 3. Buscar Outros Gastos do período
+        // 6. Buscar Gastos Gerais do período (1 única query)
         const qGeral = query(
             collection(db, "gastos_gerais"),
             where("uid", "==", currentUser.uid),
@@ -2420,22 +2495,27 @@ async function loadFinancas() {
             where("data", "<=", end)
         );
         const geralSnap = await getDocs(qGeral);
-        const outrosGastos = [];
-        let totalOutrosVal = 0;
-
+        const gastosGerais = [];
+        let totalGastosVal = 0;
         geralSnap.forEach((doc) => {
             const data = doc.data();
-            outrosGastos.push({ id: doc.id, collection: 'gastos_gerais', ...data });
-            totalOutrosVal += parseFloat(data.valor) || 0;
+            gastosGerais.push({ id: doc.id, collection: 'gastos_gerais', ...data });
+            totalGastosVal += parseFloat(data.valor) || 0;
         });
 
-        // 4. Buscar Manutenções/Revisões
-        const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        // 7. Buscar Manutenções/Revisões/Metas Ativas
+        const qManut = query(
+            collection(db, "manutencoes"), 
+            where("uid", "==", currentUser.uid)
+        );
         const manutSnap = await getDocs(qManut);
         const manuts = [];
         let totalJuntadoManut = 0;
         manutSnap.forEach((doc) => {
             const data = doc.data();
+            // Ignorar itens arquivados
+            if (data.arquivado === true) return;
+
             let saldo = 0;
             if (data.historico && Array.isArray(data.historico)) {
                 data.historico.forEach(t => {
@@ -2447,26 +2527,16 @@ async function loadFinancas() {
             manuts.push({ id: doc.id, saldo, ...data });
         });
 
-        // 5. Buscar Faturas de Cartão Pendentes no Geral (vida inteira)
-        const qPendentesCartao = query(
-            collection(db, "gastos_gerais"),
-            where("uid", "==", currentUser.uid),
-            where("forma_pagamento", "==", "Cartão de Crédito"),
-            where("pago", "==", false)
-        );
-        const pendentesSnap = await getDocs(qPendentesCartao);
-        let totalFaturasCartaoPendentes = 0;
-        pendentesSnap.forEach(d => {
-            totalFaturasCartaoPendentes += parseFloat(d.data().valor) || 0;
-        });
-
-        // 6. Atualizar Painel de Resumos
+        // 8. Atualizar Painel de Resumos Gerais
         document.getElementById('financas-total-abastecido').textContent = formatCurrency(totalAbsVal);
-        document.getElementById('financas-total-outros').textContent = formatCurrency(totalOutrosVal);
+        document.getElementById('financas-total-outros').textContent = formatCurrency(totalGastosVal);
         document.getElementById('financas-total-juntado').textContent = formatCurrency(totalJuntadoManut);
 
-        // 7. Renderizar Caixinhas
-        renderFinancasCards(currentKm, totalAbsVal, abastecimentos, totalOutrosVal, outrosGastos, manuts, totalFaturasCartaoPendentes);
+        // 9. Renderizar as 4 seções
+        renderVeiculosCarousel(localVeiculos, abastecimentos);
+        renderCartoesCarousel(localCartoes, gastosGerais);
+        renderMetasCarousel(manuts.filter(m => (parseFloat(m.km_total) || 0) === 0));
+        renderRevisoesCarousel(manuts.filter(m => (parseFloat(m.km_total) || 0) > 0), currentKm);
 
     } catch (err) {
         console.error("Erro ao carregar finanças:", err);
@@ -2475,282 +2545,488 @@ async function loadFinancas() {
     }
 }
 
-function renderFinancasCards(currentKm, totalAbs, abastecimentos, totalOutros, outrosGastos, manuts, totalFaturasCartaoPendentes = 0) {
-    const grid = document.getElementById('financas-caixinhas-grid');
-    grid.innerHTML = '';
+async function verificarEMigrarDadosPadrao() {
+    if (!currentUser) return;
 
-    // 1. CARD DE ABASTECIMENTOS
-    const cardAbs = document.createElement('div');
-    cardAbs.className = 'financas-card abastecimento-card-new';
-    cardAbs.innerHTML = `
-        <div>
-            <h3><span>⛽ Abastecimento</span> <span style="font-size: 1.5rem;">⛽</span></h3>
-            <div class="financas-card-content">
-                <div class="financas-metric-row">
-                    <span>Gasto no período:</span>
-                    <b style="color: var(--primary-color);">${formatCurrency(totalAbs)}</b>
-                </div>
-                <div class="financas-metric-row">
-                    <span>Qtd. Registros:</span>
-                    <b>${abastecimentos.length}</b>
-                </div>
-                
-                <div class="financas-card-actions" onclick="event.stopPropagation()">
-                    <button class="financas-btn-small trocar" id="btn-card-abastecer" style="flex: 1;">⛽ Abastecer</button>
-                </div>
-                
-                <p style="font-size: 0.75rem; color: #888; margin-top: 12px; text-align: center;">
-                    💡 Clique no card para ver o histórico.
-                </p>
-            </div>
-        </div>
-    `;
-    cardAbs.onclick = () => abrirModalHistoricoAbastecimento(abastecimentos);
-    
-    // Bind do clique no botão "Abastecer" do card
-    const btnCardAbs = cardAbs.querySelector('#btn-card-abastecer');
-    if (btnCardAbs) {
-        btnCardAbs.onclick = () => openAbastecimentoModal();
-    }
-    
-    grid.appendChild(cardAbs);
+    let alterado = false;
+    const updatePayload = {};
 
-    // 2. CARD DE OUTROS GASTOS / CARTÃO
-    let prestacaoAtualPendente = 0;
-
-    outrosGastos.forEach(g => {
-        const valTotal = parseFloat(g.valor) || 0;
-        if (g.forma_pagamento === 'Cartão de Crédito') {
-            const pago = g.pago === true;
-            if (!pago) {
-                prestacaoAtualPendente += valTotal;
-            }
-        }
-    });
-
-    // Renderização das parcelas de cartão dentro do card
-    let listPrestashoesHTML = '';
-    const comprasCartaoMes = outrosGastos.filter(g => g.forma_pagamento === 'Cartão de Crédito');
-    
-    if (comprasCartaoMes.length > 0) {
-        let linesHTML = '';
-        comprasCartaoMes.forEach(g => {
-            const valTotal = parseFloat(g.valor) || 0;
-            const isPaga = g.pago === true;
-            
-            linesHTML += `
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="check-parcela-card-fast" data-gasto-id="${g.id}" ${isPaga ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px;">
-                    <span style="text-decoration: ${isPaga ? 'line-through' : 'none'}; color: ${isPaga ? '#888' : '#ccc'}; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
-                        ${g.descricao}: <b>${formatCurrency(valTotal)}</b>
-                    </span>
-                </div>
-            `;
-        });
-        
-        if (linesHTML) {
-            listPrestashoesHTML = `
-                <div style="margin-top: 12px; border-top: 1px solid #333; padding-top: 10px; max-height: 110px; overflow-y: auto;">
-                    <p style="font-size: 0.75rem; color: #888; font-weight: bold; margin-bottom: 6px;">📅 Parcelas do Mês:</p>
-                    ${linesHTML}
-                </div>
-            `;
-        }
-    }
-
-    const cardOutros = document.createElement('div');
-    cardOutros.className = 'financas-card outros-gastos-card-new';
-    cardOutros.innerHTML = `
-        <div>
-            <h3><span>💳 Outros Gastos (Geral/Cartão)</span> <span style="font-size: 1.5rem;">💳</span></h3>
-            <div class="financas-card-content">
-                <div class="financas-metric-row">
-                    <span>Gasto no período:</span>
-                    <b style="color: var(--accent-color);">${formatCurrency(totalOutros)}</b>
-                </div>
-                <div class="financas-metric-row">
-                    <span>Prestação Atual (Mês):</span>
-                    <b style="color: #ff3860;">${formatCurrency(prestacaoAtualPendente)}</b>
-                </div>
-                <div class="financas-metric-row">
-                    <span>Faturas Pendentes:</span>
-                    <b style="color: #ffc107;">${formatCurrency(totalFaturasCartaoPendentes)}</b>
-                </div>
-                
-                ${listPrestashoesHTML}
-                
-                <div class="financas-card-actions" onclick="event.stopPropagation()">
-                    <button class="financas-btn-small trocar" id="btn-card-gasto" style="flex: 1; background: var(--accent-color); color: white; border-color: var(--accent-color);">💳 Gasto</button>
-                </div>
-                
-                <p style="font-size: 0.75rem; color: #888; margin-top: 12px; text-align: center;">
-                    💡 Clique no card para ver o histórico.
-                </p>
-            </div>
-        </div>
-    `;
-    cardOutros.onclick = () => abrirModalHistoricoOutrosGastos(outrosGastos);
-    
-    // Bind do clique no botão "💳 Gasto" do card
-    const btnCardGasto = cardOutros.querySelector('#btn-card-gasto');
-    if (btnCardGasto) {
-        btnCardGasto.onclick = () => openGastoGeralModal();
-    }
-    
-    // Bind dos checkboxes rápidos de parcelas no card
-    cardOutros.querySelectorAll('.check-parcela-card-fast').forEach(check => {
-        check.onchange = async (e) => {
-            const gastoId = check.getAttribute('data-gasto-id');
-            const checked = check.checked;
-            
-            showLoader(true, 'Atualizando parcela...');
-            try {
-                const docRef = doc(db, "gastos_gerais", gastoId);
-                await updateDoc(docRef, { pago: checked });
-                await loadFinancas(); // Recarrega tudo
-            } catch (err) {
-                console.error("Erro ao atualizar parcela rápido:", err);
-                check.checked = !checked;
-            } finally {
-                showLoader(false);
-            }
+    // 1. Verificar/Migrar Veículos
+    if (!userConfig.veiculos || !Array.isArray(userConfig.veiculos) || userConfig.veiculos.length === 0) {
+        const defaultVeiculo = {
+            id: 'v_default_' + new Date().getTime(),
+            nome: "Meu Carro (Padrão)",
+            consumo_medio: parseFloat(userConfig.consumoMedio) || 10.0
         };
-    });
-    
-    grid.appendChild(cardOutros);
+        userConfig.veiculos = [defaultVeiculo];
+        updatePayload.veiculos = userConfig.veiculos;
+        alterado = true;
 
-    // 3. CARDS DE REVISÕES / MANUTENÇÕES
-    manuts.forEach(m => {
-        const cardManut = document.createElement('div');
-        cardManut.className = 'financas-card manutencao-card-new';
-        
-        const isLivre = (parseFloat(m.km_total) || 0) === 0;
-        const alertaAtivo = m.alerta_ativo !== false;
-        
-        let contentHTML = '';
-        if (isLivre) {
-            const percentualFin = Math.min(100, Math.max(0, (m.saldo / m.valor) * 100));
-            const prazoBr = m.data_limite ? m.data_limite.split('-').reverse().join('/') : 'Sem prazo';
-            contentHTML = `
-                <div>
-                    <h3>
-                        <span>🎯 ${m.nome}</span>
-                        <div class="switch-container" title="Ativar Alertas no Dashboard" onclick="event.stopPropagation()">
-                            <span>🔔</span>
-                            <label class="switch">
-                                <input type="checkbox" class="alerta-switch" data-id="${m.id}" ${alertaAtivo ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </h3>
-                    
-                    <div class="financas-card-content">
-                        <div class="financas-progress-container">
-                            <div class="financas-progress-label">
-                                <span>Meta Alcançada (${percentualFin.toFixed(0)}%)</span>
-                                <span>${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</span>
-                            </div>
-                            <div class="financas-progress-bar-bg">
-                                <div class="financas-progress-bar ok" style="width: ${percentualFin}%"></div>
-                            </div>
-                            <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: var(--success-color);">
-                                ${percentualFin >= 100 ? '✅ Meta Atingida!' : `Falta juntar ${formatCurrency(m.valor - m.saldo)}`}
-                            </div>
-                        </div>
-
-                        <div class="financas-metric-row" style="margin-top: 10px;">
-                            <span>Prazo Final:</span>
-                            <b style="color: #ffc107;">${prazoBr}</b>
-                        </div>
-                        <div class="financas-metric-row">
-                            <span>Dinheiro Guardado:</span>
-                            <b style="color: #00d1b2;">${formatCurrency(m.saldo)}</b>
-                        </div>
-                        
-                        <div class="financas-card-actions" onclick="event.stopPropagation()">
-                            <button class="financas-btn-small poupar" data-id="${m.id}">+ Poupar</button>
-                            <button class="financas-btn-small trocar" data-id="${m.id}">💰 Gastar / Resgatar</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            const kmAndado = currentKm - m.km_inicial;
-            const kmIntervalo = m.km_total;
-            const percentual = Math.min(100, Math.max(0, (kmAndado / kmIntervalo) * 100));
-            const kmRestante = kmIntervalo - kmAndado;
-
-            let statusText = '';
-            let progressClass = '';
-            if (kmRestante <= 0) {
-                statusText = `🚨 Vencido há ${Math.abs(kmRestante).toFixed(0)} km!`;
-                progressClass = 'danger';
-            } else if (kmRestante <= 500) {
-                statusText = `⚠️ Vence em ${kmRestante.toFixed(0)} km!`;
-                progressClass = 'warning';
-            } else {
-                statusText = `${kmRestante.toFixed(0)} km restantes`;
-                progressClass = 'ok';
+        // Migrar abastecimentos históricos sem veiculo_id (busca e atualiza silenciosamente)
+        try {
+            const qAbsSemVeiculo = query(collection(db, "abastecimentos"), where("uid", "==", currentUser.uid));
+            const snapAbs = await getDocs(qAbsSemVeiculo);
+            for (const docAbs of snapAbs.docs) {
+                const dataAbs = docAbs.data();
+                if (!dataAbs.veiculo_id) {
+                    await updateDoc(doc(db, "abastecimentos", docAbs.id), {
+                        veiculo_id: defaultVeiculo.id
+                    });
+                }
             }
+        } catch (e) {
+            console.error("Erro na migração de abastecimentos legados:", e);
+        }
+    }
 
-            contentHTML = `
-                <div>
-                    <h3>
-                        <span>🔧 ${m.nome}</span>
-                        <div class="switch-container" title="Ativar Alertas no Dashboard" onclick="event.stopPropagation()">
-                            <span>🔔</span>
-                            <label class="switch">
-                                <input type="checkbox" class="alerta-switch" data-id="${m.id}" ${alertaAtivo ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </h3>
+    // 2. Verificar/Migrar Cartões/Métodos
+    if (!userConfig.cartoes || !Array.isArray(userConfig.cartoes) || userConfig.cartoes.length === 0) {
+        const metodosPadrao = [
+            { id: 'c_dinheiro', nome: "Dinheiro", permite_parcelamento: false },
+            { id: 'c_pix', nome: "Pix", permite_parcelamento: false },
+            { id: 'c_debito', nome: "Débito", permite_parcelamento: false },
+            { id: 'c_sicredi', nome: "Sicredi", permite_parcelamento: true },
+            { id: 'c_bradesco', nome: "Bradesco", permite_parcelamento: true },
+            { id: 'c_nubank', nome: "Nubank", permite_parcelamento: true },
+            { id: 'c_caixa', nome: "Caixa", permite_parcelamento: true }
+        ];
+        userConfig.cartoes = metodosPadrao;
+        updatePayload.cartoes = userConfig.cartoes;
+        alterado = true;
+
+        // Migrar gastos_gerais históricos sem cartao_id
+        try {
+            const qGastosSemCartao = query(collection(db, "gastos_gerais"), where("uid", "==", currentUser.uid));
+            const snapGastos = await getDocs(qGastosSemCartao);
+            
+            const mapNomeToId = {};
+            metodosPadrao.forEach(m => mapNomeToId[m.nome] = m.id);
+
+            for (const docGasto of snapGastos.docs) {
+                const dataGasto = docGasto.data();
+                if (!dataGasto.cartao_id) {
+                    const fp = dataGasto.forma_pagamento || "Dinheiro";
+                    const targetId = mapNomeToId[fp] || mapNomeToId["Dinheiro"];
+                    await updateDoc(doc(db, "gastos_gerais", docGasto.id), {
+                        cartao_id: targetId
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Erro na migração de despesas legadas:", e);
+        }
+    }
+
+    if (alterado) {
+        try {
+            await setDoc(doc(db, "configs", currentUser.uid), { ...userConfig, ...updatePayload });
+            userConfig = { ...userConfig, ...updatePayload };
+        } catch (e) {
+            console.error("Erro ao persistir migração em configs:", e);
+        }
+    }
+}
+
+function popularSelectVeiculos() {
+    const select = document.getElementById('abs-veiculo-id');
+    if (!select) return;
+    select.innerHTML = '';
+    localVeiculos.forEach(v => {
+        const option = document.createElement('option');
+        option.value = v.id;
+        option.textContent = v.nome;
+        select.appendChild(option);
+    });
+}
+
+function popularSelectCartoes() {
+    const select = document.getElementById('gasto-pagamento');
+    if (!select) return;
+    select.innerHTML = '';
+    localCartoes.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.nome;
+        select.appendChild(option);
+    });
+}
+
+function renderVeiculosCarousel(veiculos, abastecimentos) {
+    const container = document.getElementById('carousel-veiculos');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (veiculos.length === 0) {
+        container.innerHTML = `<p style="padding: 20px; color: #888; text-align: center; width: 100%;">Nenhum veículo cadastrado.</p>`;
+        return;
+    }
+
+    veiculos.forEach(v => {
+        const absCarro = abastecimentos.filter(a => a.veiculo_id === v.id);
+        const totalAbastecido = absCarro.reduce((acc, curr) => acc + (parseFloat(curr.valor_total) || 0), 0);
+
+        let somaDistancia = 0;
+        let somaLitros = 0;
+        absCarro.forEach(item => {
+            const kmAnt = parseFloat(item.km_anterior) || 0;
+            const kmAtu = parseFloat(item.km_atual) || 0;
+            const precoLitro = parseFloat(item.preco_litro) || 0;
+            const valorTotal = parseFloat(item.valor_total) || 0;
+
+            const dist = kmAtu - kmAnt;
+            const litros = precoLitro > 0 ? (valorTotal / precoLitro) : 0;
+
+            if (dist > 0 && litros > 0) {
+                somaDistancia += dist;
+                somaLitros += litros;
+            }
+        });
+
+        const mediaPeriodo = somaLitros > 0 ? (somaDistancia / somaLitros) : 0;
+        const mediaExibida = mediaPeriodo > 0 ? `${mediaPeriodo.toFixed(1).replace('.', ',')} KM/L` : `${parseFloat(v.consumo_medio).toFixed(1).replace('.', ',')} KM/L (Médio)`;
+
+        const card = document.createElement('div');
+        card.className = 'financas-card abastecimento-card-new';
+        card.innerHTML = `
+            <div>
+                <h3 style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🚗 ${v.nome}</span>
+                    <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                        <button class="btn-edit-veiculo btn-small" style="background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; padding: 0;">✏️</button>
+                        <button class="btn-delete-veiculo btn-small" style="background: none; border: none; color: var(--danger-color); font-size: 1.1rem; cursor: pointer; padding: 0;" title="Excluir Veículo">🗑️</button>
+                    </div>
+                </h3>
+                <div class="financas-card-content">
+                    <div class="financas-metric-row">
+                        <span>Gasto no período:</span>
+                        <b style="color: var(--primary-color);">${formatCurrency(totalAbastecido)}</b>
+                    </div>
+                    <div class="financas-metric-row">
+                        <span>Consumo Médio:</span>
+                        <b style="color: var(--success-color);">${mediaExibida}</b>
+                    </div>
+                    <div class="financas-metric-row">
+                        <span>Abastecimentos:</span>
+                        <b>${absCarro.length}</b>
+                    </div>
                     
-                    <div class="financas-card-content">
-                        <div class="financas-progress-container">
-                            <div class="financas-progress-label">
-                                <span>Progresso (${percentual.toFixed(0)}%)</span>
-                                <span>${kmAndado.toFixed(0)} / ${kmIntervalo.toFixed(0)} km</span>
-                            </div>
-                            <div class="financas-progress-bar-bg">
-                                <div class="financas-progress-bar ${progressClass}" style="width: ${percentual}%"></div>
-                            </div>
-                            <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: ${progressClass === 'danger' ? 'var(--danger-color)' : progressClass === 'warning' ? '#ffc107' : 'var(--success-color)'}">
-                                ${statusText}
-                            </div>
-                        </div>
-
-                        <div class="financas-metric-row" style="margin-top: 10px;">
-                            <span>Dinheiro Arrecadado:</span>
-                            <b style="color: #00d1b2;">${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</b>
-                        </div>
-                        
-                        <div class="financas-card-actions" onclick="event.stopPropagation()">
-                            <button class="financas-btn-small poupar" data-id="${m.id}">+ Poupar</button>
-                            <button class="financas-btn-small trocar" data-id="${m.id}">🔧 Trocar / Gastar</button>
-                        </div>
+                    <div class="financas-card-actions" onclick="event.stopPropagation()">
+                        <button class="financas-btn-small trocar btn-abastecer-veiculo" style="flex: 1;">⛽ Abastecer</button>
                     </div>
                 </div>
-            `;
+            </div>
+        `;
+
+        card.onclick = () => {
+            selectedVeiculoIdHist = v.id;
+            abrirModalHistoricoAbastecimentoFiltrado(absCarro, v.nome);
+        };
+
+        card.querySelector('.btn-abastecer-veiculo').onclick = () => {
+            openAbastecimentoModal(null, v.id);
+        };
+
+        card.querySelector('.btn-edit-veiculo').onclick = () => {
+            openVeiculoModal(v);
+        };
+
+        card.querySelector('.btn-delete-veiculo').onclick = () => {
+            excluirVeiculoDireto(v.id, v.nome);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+function renderCartoesCarousel(cartoes, gastos) {
+    const container = document.getElementById('carousel-cartoes');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (cartoes.length === 0) {
+        container.innerHTML = `<p style="padding: 20px; color: #888; text-align: center; width: 100%;">Nenhum cartão cadastrado.</p>`;
+        return;
+    }
+
+    cartoes.forEach(c => {
+        const gastosCartao = gastos.filter(g => g.cartao_id === c.id || (!g.cartao_id && g.forma_pagamento === c.nome));
+        const totalGastos = gastosCartao.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
+
+        const card = document.createElement('div');
+        card.className = 'financas-card outros-gastos-card-new';
+        card.innerHTML = `
+            <div>
+                <h3 style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>💳 ${c.nome}</span>
+                    <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                        <button class="btn-edit-cartao btn-small" style="background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; padding: 0;">✏️</button>
+                        <button class="btn-delete-cartao btn-small" style="background: none; border: none; color: var(--danger-color); font-size: 1.1rem; cursor: pointer; padding: 0;" title="Excluir Cartão">🗑️</button>
+                    </div>
+                </h3>
+                <div class="financas-card-content">
+                    <div class="financas-metric-row">
+                        <span>Total no período:</span>
+                        <b style="color: var(--accent-color);">${formatCurrency(totalGastos)}</b>
+                    </div>
+                    <div class="financas-metric-row">
+                        <span>Despesas no período:</span>
+                        <b>${gastosCartao.length}</b>
+                    </div>
+                    <div class="financas-metric-row">
+                        <span>Tipo:</span>
+                        <span style="color: #aaa; font-size: 0.8rem;">${c.permite_parcelamento ? 'Crédito' : 'À Vista'}</span>
+                    </div>
+                    
+                    <div class="financas-card-actions" onclick="event.stopPropagation()">
+                        <button class="financas-btn-small trocar btn-gasto-cartao" style="flex: 1; background: var(--accent-color); color: white; border-color: var(--accent-color);">💳 + Compra</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        card.onclick = () => {
+            selectedCartaoIdHist = c.id;
+            abrirModalHistoricoOutrosGastosFiltrados(gastosCartao, c.nome);
+        };
+
+        card.querySelector('.btn-gasto-cartao').onclick = () => {
+            openGastoGeralModal(null, c.id);
+        };
+
+        card.querySelector('.btn-edit-cartao').onclick = () => {
+            openCartaoModal(c);
+        };
+
+        card.querySelector('.btn-delete-cartao').onclick = () => {
+            excluirCartaoDireto(c.id, c.nome);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+function renderMetasCarousel(manutencoes) {
+    const container = document.getElementById('carousel-metas');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (manutencoes.length === 0) {
+        container.innerHTML = `<p style="padding: 20px; color: #888; text-align: center; width: 100%;">Nenhuma meta cadastrada.</p>`;
+        return;
+    }
+
+    manutencoes.forEach(m => {
+        const percentualFin = Math.min(100, Math.max(0, (m.saldo / m.valor) * 100));
+        
+        let diasRestantesText = 'Sem prazo';
+        let diasClasse = '';
+        if (m.data_limite) {
+            const dataFim = new Date(m.data_limite + 'T23:59:59');
+            const dataHoje = new Date();
+            dataFim.setHours(0,0,0,0);
+            dataHoje.setHours(0,0,0,0);
+
+            const diffTime = dataFim - dataHoje;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                diasRestantesText = `Vencido há ${Math.abs(diffDays)} dias!`;
+                diasClasse = 'color: var(--danger-color); font-weight: bold;';
+            } else if (diffDays === 0) {
+                diasRestantesText = 'Vence hoje!';
+                diasClasse = 'color: #ffc107; font-weight: bold;';
+            } else {
+                diasRestantesText = `${diffDays} dias restantes`;
+                diasClasse = 'color: #aaa;';
+            }
+        }
+        
+        const prazoBr = m.data_limite ? m.data_limite.split('-').reverse().join('/') : 'Sem prazo';
+
+        const card = document.createElement('div');
+        card.className = 'financas-card manutencao-card-new';
+        card.innerHTML = `
+            <div>
+                <h3>
+                    <span>🎯 ${m.nome}</span>
+                    <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                        <button class="btn-edit-meta-fin btn-small" style="background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; padding: 0;">✏️</button>
+                        <button class="btn-delete-meta-fin btn-small" style="background: none; border: none; color: var(--danger-color); font-size: 1.1rem; cursor: pointer; padding: 0;" title="Excluir Definitivamente">🗑️</button>
+                    </div>
+                </h3>
+                
+                <div class="financas-card-content">
+                    <div class="financas-progress-container">
+                        <div class="financas-progress-label">
+                            <span>Progresso (${percentualFin.toFixed(0)}%)</span>
+                            <span>${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</span>
+                        </div>
+                        <div class="financas-progress-bar-bg">
+                            <div class="financas-progress-bar ok" style="width: ${percentualFin}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="financas-metric-row">
+                        <span>Prazo Final:</span>
+                        <b>${prazoBr}</b>
+                    </div>
+                    <div class="financas-metric-row">
+                        <span>Tempo Restante:</span>
+                        <span style="${diasClasse}">${diasRestantesText}</span>
+                    </div>
+                    
+                    <div class="financas-card-actions" onclick="event.stopPropagation()">
+                        <button class="financas-btn-small poupar btn-poupar-meta" data-id="${m.id}">+ Poupar</button>
+                        <button class="financas-btn-small trocar btn-arquivar-meta" data-id="${m.id}" style="background: #2b2b2b; color: #ccc; border-color: #444;">📁 Arquivar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        card.onclick = () => abrirModalHistoricoManutencao(m);
+
+        card.querySelector('.btn-poupar-meta').onclick = () => {
+            abrirModalTransacaoCaixinha(m, 'entrada');
+        };
+
+        card.querySelector('.btn-arquivar-meta').onclick = () => {
+            arquivarMetaOuRevisao(m.id, m.nome);
+        };
+
+        card.querySelector('.btn-edit-meta-fin').onclick = () => {
+            openMetaFinModal(m);
+        };
+
+        card.querySelector('.btn-delete-meta-fin').onclick = () => {
+            excluirCaixinhaDireto(m.id, m.nome);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+function renderRevisoesCarousel(manutencoes, currentKm) {
+    const container = document.getElementById('carousel-revisoes');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (manutencoes.length === 0) {
+        container.innerHTML = `<p style="padding: 20px; color: #888; text-align: center; width: 100%;">Nenhuma revisão cadastrada.</p>`;
+        return;
+    }
+
+    manutencoes.forEach(m => {
+        const percentualDinheiro = Math.min(100, Math.max(0, (m.saldo / m.valor) * 100));
+        
+        const kmAndado = currentKm - m.km_inicial;
+        const kmIntervalo = m.km_total;
+        const percentualKm = Math.min(100, Math.max(0, (kmAndado / kmIntervalo) * 100));
+        const kmRestante = kmIntervalo - kmAndado;
+
+        let statusText = '';
+        let progressClass = '';
+        if (kmRestante <= 0) {
+            statusText = `🚨 Vencido há ${Math.abs(kmRestante).toFixed(0)} km!`;
+            progressClass = 'danger';
+        } else if (kmRestante <= 500) {
+            statusText = `⚠️ Vence em ${kmRestante.toFixed(0)} km!`;
+            progressClass = 'warning';
+        } else {
+            statusText = `${kmRestante.toFixed(0)} km restantes`;
+            progressClass = 'ok';
         }
 
-        cardManut.innerHTML = contentHTML;
+        const card = document.createElement('div');
+        card.className = 'financas-card manutencao-card-new';
+        card.innerHTML = `
+            <div class="revisao-card-layout">
+                <div class="progress-vertical-wrapper" title="Dinheiro Arrecadado: ${percentualDinheiro.toFixed(0)}%">
+                    <div class="progress-vertical-bg">
+                        <div class="progress-vertical-bar ${percentualDinheiro >= 100 ? 'ok' : ''}" style="height: ${percentualDinheiro}%"></div>
+                    </div>
+                    <span class="progress-vertical-label">${percentualDinheiro.toFixed(0)}%</span>
+                </div>
 
-        cardManut.querySelector('.alerta-switch').addEventListener('change', (e) => {
-            toggleAlertaManutencao(m.id, e.target.checked);
-        });
+                <div class="revisao-card-main-content">
+                    <div>
+                        <h3 style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>🔧 ${m.nome}</span>
+                            <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                                <button class="btn-edit-revisao btn-small" style="background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; padding: 0;">✏️</button>
+                                <button class="btn-delete-revisao btn-small" style="background: none; border: none; color: var(--danger-color); font-size: 1.1rem; cursor: pointer; padding: 0;" title="Excluir Definitivamente">🗑️</button>
+                            </div>
+                        </h3>
+                        <div class="financas-card-content">
+                            <div class="financas-metric-row" style="margin-bottom: 4px;">
+                                <span>Saldo / Custo:</span>
+                                <b style="color: #00d1b2;">${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</b>
+                            </div>
+                            <div class="financas-metric-row" style="margin-bottom: 4px;">
+                                <span>KM para troca:</span>
+                                <b>${kmIntervalo.toFixed(0)} km</b>
+                            </div>
+                            <div class="financas-metric-row" style="margin-bottom: 4px;">
+                                <span>Faltam:</span>
+                                <b style="color: ${progressClass === 'danger' ? 'var(--danger-color)' : progressClass === 'warning' ? '#ffc107' : 'var(--success-color)'}">${statusText}</b>
+                            </div>
+                        </div>
+                    </div>
 
-        cardManut.querySelector('.financas-btn-small.poupar').addEventListener('click', () => {
+                    <div class="progress-horizontal-base">
+                        <div class="financas-progress-label" style="font-size: 0.72rem; margin-bottom: 2px;">
+                            <span>Progresso KM (${percentualKm.toFixed(0)}%)</span>
+                            <span>${kmAndado.toFixed(0)} / ${kmIntervalo.toFixed(0)} km</span>
+                        </div>
+                        <div class="financas-progress-bar-bg" style="height: 6px;">
+                            <div class="financas-progress-bar ${progressClass}" style="width: ${percentualKm}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="financas-card-actions" onclick="event.stopPropagation()" style="margin-top: 12px; font-size: 0.8rem;">
+                        <button class="financas-btn-small poupar btn-poupar-revisao" style="padding: 4px 6px;">+ Poupar</button>
+                        <button class="financas-btn-small duplicar btn-duplicar-revisao" style="padding: 4px 6px; background: rgba(50, 115, 220, 0.2); color: var(--accent-color); border-color: rgba(50, 115, 220, 0.3);">📋 Duplicar</button>
+                        <button class="financas-btn-small arquivar btn-arquivar-revisao" style="padding: 4px 6px; background: #2b2b2b; color: #ccc; border-color: #444;">📁 Arquivar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        card.onclick = () => abrirModalHistoricoManutencao(m);
+
+        card.querySelector('.btn-poupar-revisao').onclick = () => {
             abrirModalTransacaoCaixinha(m, 'entrada');
-        });
+        };
 
-        cardManut.querySelector('.financas-btn-small.trocar').addEventListener('click', () => {
-            abrirModalTransacaoCaixinha(m, 'saida');
-        });
+        card.querySelector('.btn-duplicar-revisao').onclick = () => {
+            duplicarRevisao(m);
+        };
 
-        cardManut.onclick = () => abrirModalHistoricoManutencao(m);
-        grid.appendChild(cardManut);
+        card.querySelector('.btn-arquivar-revisao').onclick = () => {
+            arquivarMetaOuRevisao(m.id, m.nome);
+        };
+
+        card.querySelector('.btn-edit-revisao').onclick = () => {
+            openRevisaoKmModal(m);
+        };
+
+        card.querySelector('.btn-delete-revisao').onclick = () => {
+            excluirCaixinhaDireto(m.id, m.nome);
+        };
+
+        container.appendChild(card);
     });
+}
+
+function abrirModalHistoricoAbastecimentoFiltrado(abastecimentos, nomeVeiculo) {
+    const tituloEl = document.querySelector('#modal-historico-abastecimento h3');
+    if (tituloEl) tituloEl.innerHTML = `<span>⛽ Histórico - ${nomeVeiculo}</span>`;
+    abrirModalHistoricoAbastecimento(abastecimentos);
+}
+
+function abrirModalHistoricoOutrosGastosFiltrados(outrosGastos, nomeCartao) {
+    const tituloEl = document.querySelector('#modal-historico-outros-gastos h3');
+    if (tituloEl) tituloEl.innerHTML = `<span>💳 Histórico - ${nomeCartao}</span>`;
+    abrirModalHistoricoOutrosGastos(outrosGastos);
 }
 
 async function toggleAlertaManutencao(id, checked) {
@@ -3122,5 +3398,604 @@ function abrirModalHistoricoManutencao(manut) {
         });
     }
     modal.style.display = 'flex';
+}
+
+// --- SISTEMA DE FINANÇAS: NOVOS CADASTROS E SUPORTE A CARROSSEIS ---
+
+function setupNovasFinancas() {
+    const btnVeiculo = document.getElementById('btnNovoVeiculo');
+    if (btnVeiculo) btnVeiculo.onclick = () => openVeiculoModal();
+
+    const btnCartao = document.getElementById('btnNovoCartao');
+    if (btnCartao) btnCartao.onclick = () => openCartaoModal();
+
+    const btnMeta = document.getElementById('btnNovaMetaFin');
+    if (btnMeta) btnMeta.onclick = () => openMetaFinModal();
+
+    const btnRevisao = document.getElementById('btnNovaRevisaoKm');
+    if (btnRevisao) btnRevisao.onclick = () => openRevisaoKmModal();
+
+    const btnArquivados = document.getElementById('btnConsultarArquivados');
+    if (btnArquivados) btnArquivados.onclick = () => openArquivadosModal();
+
+    document.getElementById('closeVeiculoBtn').onclick = () => fecharVeiculoModal();
+    document.getElementById('closeVeiculoFooterBtn').onclick = () => fecharVeiculoModal();
+    document.getElementById('form-veiculo').onsubmit = (e) => saveVeiculo(e);
+
+    document.getElementById('closeCartaoBtn').onclick = () => fecharCartaoModal();
+    document.getElementById('closeCartaoFooterBtn').onclick = () => fecharCartaoModal();
+    document.getElementById('form-cartao').onsubmit = (e) => saveCartao(e);
+
+    document.getElementById('closeMetaFinBtn').onclick = () => fecharMetaFinModal();
+    document.getElementById('closeMetaFinFooterBtn').onclick = () => fecharMetaFinModal();
+    document.getElementById('form-meta-financeira').onsubmit = (e) => saveMetaFin(e);
+
+    document.getElementById('closeRevisaoKmBtn').onclick = () => fecharRevisaoKmModal();
+    document.getElementById('closeRevisaoKmFooterBtn').onclick = () => fecharRevisaoKmModal();
+    document.getElementById('form-revisao-km').onsubmit = (e) => saveRevisaoKm(e);
+
+    document.getElementById('closeArquivadosBtn').onclick = () => document.getElementById('modal-arquivados').style.display = 'none';
+    document.getElementById('closeArquivadosFooterBtn').onclick = () => document.getElementById('modal-arquivados').style.display = 'none';
+
+    const applyMaskMoney = (input) => {
+        if (!input) return;
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            value = (parseInt(value) / 100).toFixed(2);
+            e.target.value = value.replace('.', ',');
+        });
+    };
+
+    applyMaskMoney(document.getElementById('meta-fin-valor'));
+    applyMaskMoney(document.getElementById('revisao-km-valor'));
+
+    const absValInput = document.getElementById('abs-valor-total');
+    if (absValInput) {
+        absValInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            value = (parseInt(value) / 100).toFixed(2);
+            e.target.value = value.replace('.', ',');
+        });
+    }
+
+    const absPriceInput = document.getElementById('abs-preco-litro');
+    if (absPriceInput) {
+        absPriceInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            value = (parseInt(value) / 100).toFixed(2);
+            e.target.value = value.replace('.', ',');
+        });
+    }
+
+    const gastoValInput = document.getElementById('gasto-valor');
+    if (gastoValInput) {
+        gastoValInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            value = (parseInt(value) / 100).toFixed(2);
+            e.target.value = value.replace('.', ',');
+        });
+    }
+    
+    const absVeiculoSelect = document.getElementById('abs-veiculo-id');
+    if (absVeiculoSelect) {
+        absVeiculoSelect.addEventListener('change', async () => {
+            const absId = document.getElementById('abs-id').value;
+            if (!absId) {
+                const currentVeiculoId = absVeiculoSelect.value;
+                if (currentVeiculoId) {
+                    showLoader(true, 'Buscando KM anterior do veículo...');
+                    try {
+                        let lastKm = 0;
+                        const qAbs = query(
+                            collection(db, "abastecimentos"),
+                            where("uid", "==", currentUser.uid),
+                            where("veiculo_id", "==", currentVeiculoId),
+                            orderBy("km_atual", "desc"),
+                            limit(1)
+                        );
+                        const snapAbs = await getDocs(qAbs);
+                        if (!snapAbs.empty) {
+                            lastKm = snapAbs.docs[0].data().km_atual || 0;
+                        }
+                        if (lastKm === 0) {
+                            const qReg = query(collection(db, "registros"), where("uid", "==", currentUser.uid), orderBy("km_final", "desc"), limit(1));
+                            const snapReg = await getDocs(qReg);
+                            if (!snapReg.empty) lastKm = snapReg.docs[0].data().km_final || 0;
+                        }
+                        document.getElementById('abs-km-anterior').value = lastKm;
+                        const evt = new Event('input');
+                        document.getElementById('abs-km-anterior').dispatchEvent(evt);
+                    } catch (e) {
+                        console.error("Erro ao mudar veículo no select:", e);
+                    } finally {
+                        showLoader(false);
+                    }
+                }
+            }
+        });
+    }
+}
+
+function openVeiculoModal(veiculo = null) {
+    const modal = document.getElementById('modal-veiculo');
+    const form = document.getElementById('form-veiculo');
+    form.reset();
+
+    const titulo = document.getElementById('veiculo-titulo');
+    if (veiculo) {
+        titulo.textContent = "🚗 Editar Veículo";
+        document.getElementById('veiculo-id').value = veiculo.id;
+        document.getElementById('veiculo-nome').value = veiculo.nome;
+        document.getElementById('veiculo-consumo').value = veiculo.consumo_medio || 10.0;
+    } else {
+        titulo.textContent = "🚗 Novo Veículo";
+        document.getElementById('veiculo-id').value = "";
+        document.getElementById('veiculo-consumo').value = "10.0";
+    }
+    modal.style.display = 'flex';
+}
+
+function fecharVeiculoModal() {
+    document.getElementById('modal-veiculo').style.display = 'none';
+}
+
+async function saveVeiculo(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando veículo...');
+    const id = document.getElementById('veiculo-id').value;
+    const nome = document.getElementById('veiculo-nome').value;
+    const consumo = parseFloat(document.getElementById('veiculo-consumo').value) || 10.0;
+
+    try {
+        if (!userConfig.veiculos || !Array.isArray(userConfig.veiculos)) {
+            userConfig.veiculos = [];
+        }
+
+        if (id) {
+            userConfig.veiculos = userConfig.veiculos.map(v => {
+                if (v.id === id) {
+                    return { ...v, nome: nome, consumo_medio: consumo };
+                }
+                return v;
+            });
+        } else {
+            const newVeiculo = {
+                id: 'v_' + new Date().getTime(),
+                nome: nome,
+                consumo_medio: consumo
+            };
+            userConfig.veiculos.push(newVeiculo);
+        }
+
+        await setDoc(doc(db, "configs", currentUser.uid), userConfig);
+
+        fecharVeiculoModal();
+        await loadFinancas();
+    } catch (err) {
+        console.error("Erro ao salvar veículo:", err);
+        alert("Erro ao salvar veículo.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+function openCartaoModal(cartao = null) {
+    const modal = document.getElementById('modal-cartao');
+    const form = document.getElementById('form-cartao');
+    form.reset();
+
+    const titulo = document.getElementById('cartao-titulo');
+    if (cartao) {
+        titulo.textContent = "💳 Editar Cartão / Método";
+        document.getElementById('cartao-id').value = cartao.id;
+        document.getElementById('cartao-nome').value = cartao.nome;
+        document.getElementById('cartao-parcelado-perm').checked = cartao.permite_parcelamento || false;
+    } else {
+        titulo.textContent = "💳 Novo Cartão / Método";
+        document.getElementById('cartao-id').value = "";
+        document.getElementById('cartao-parcelado-perm').checked = false;
+    }
+    modal.style.display = 'flex';
+}
+
+function fecharCartaoModal() {
+    document.getElementById('modal-cartao').style.display = 'none';
+}
+
+async function saveCartao(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando cartão...');
+    const id = document.getElementById('cartao-id').value;
+    const nome = document.getElementById('cartao-nome').value;
+    const parceladoPerm = document.getElementById('cartao-parcelado-perm').checked;
+
+    try {
+        if (!userConfig.cartoes || !Array.isArray(userConfig.cartoes)) {
+            userConfig.cartoes = [];
+        }
+
+        if (id) {
+            userConfig.cartoes = userConfig.cartoes.map(c => {
+                if (c.id === id) {
+                    return { ...c, nome: nome, permite_parcelamento: parceladoPerm };
+                }
+                return c;
+            });
+        } else {
+            const newCartao = {
+                id: 'c_' + new Date().getTime(),
+                nome: nome,
+                permite_parcelamento: parceladoPerm
+            };
+            userConfig.cartoes.push(newCartao);
+        }
+
+        await setDoc(doc(db, "configs", currentUser.uid), userConfig);
+
+        fecharCartaoModal();
+        await loadFinancas();
+    } catch (err) {
+        console.error("Erro ao salvar cartão:", err);
+        alert("Erro ao salvar cartão.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+function openMetaFinModal(meta = null) {
+    const modal = document.getElementById('modal-meta-financeira');
+    const form = document.getElementById('form-meta-financeira');
+    form.reset();
+
+    const titulo = document.getElementById('meta-fin-titulo');
+    if (meta) {
+        titulo.textContent = "🎯 Editar Meta Financeira";
+        document.getElementById('meta-fin-id').value = meta.id;
+        document.getElementById('meta-fin-nome').value = meta.nome;
+        document.getElementById('meta-fin-valor').value = meta.valor.toFixed(2).replace('.', ',');
+        document.getElementById('meta-fin-data-limite').value = meta.data_limite || "";
+    } else {
+        titulo.textContent = "🎯 Nova Meta Financeira";
+        document.getElementById('meta-fin-id').value = "";
+        document.getElementById('meta-fin-data-limite').value = getLocalDate();
+    }
+    modal.style.display = 'flex';
+}
+
+function fecharMetaFinModal() {
+    document.getElementById('modal-meta-financeira').style.display = 'none';
+}
+
+async function saveMetaFin(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando meta...');
+    const id = document.getElementById('meta-fin-id').value;
+    const nome = document.getElementById('meta-fin-nome').value;
+    const valor = parseFloat(document.getElementById('meta-fin-valor').value.replace(',', '.')) || 0;
+    const dataLimite = document.getElementById('meta-fin-data-limite').value;
+
+    try {
+        const data = {
+            nome: nome,
+            valor: valor,
+            km_total: 0,
+            km_inicial: 0,
+            data_limite: dataLimite,
+            uid: currentUser.uid,
+            updatedAt: new Date()
+        };
+
+        if (id) {
+            await updateDoc(doc(db, "manutencoes", id), data);
+        } else {
+            data.alerta_ativo = true;
+            data.historico = [];
+            data.arquivado = false;
+            await addDoc(collection(db, "manutencoes"), data);
+        }
+
+        fecharMetaFinModal();
+        await loadFinancas();
+        checkMaintenanceAlerts();
+    } catch (err) {
+        console.error("Erro ao salvar meta:", err);
+        alert("Erro ao salvar meta.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+function openRevisaoKmModal(revisao = null) {
+    const modal = document.getElementById('modal-revisao-km');
+    const form = document.getElementById('form-revisao-km');
+    form.reset();
+
+    const titulo = document.getElementById('revisao-km-titulo');
+    if (revisao) {
+        titulo.textContent = "🔧 Editar Revisão por KM";
+        document.getElementById('revisao-km-id').value = revisao.id;
+        document.getElementById('revisao-km-nome').value = revisao.nome;
+        document.getElementById('revisao-km-valor').value = revisao.valor.toFixed(2).replace('.', ',');
+        document.getElementById('revisao-km-inicial').value = revisao.km_inicial;
+        document.getElementById('revisao-km-total').value = revisao.km_total;
+    } else {
+        titulo.textContent = "🔧 Nova Revisão por KM";
+        document.getElementById('revisao-km-id').value = "";
+        
+        let currentKm = 0;
+        document.getElementById('revisao-km-inicial').value = currentKm;
+        document.getElementById('revisao-km-total').value = "10000";
+        
+        const qLast = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
+        getDocs(qLast).then(lastSnap => {
+            let lastKm = 0;
+            if (!lastSnap.empty) {
+                lastSnap.forEach(d => {
+                    const km = parseFloat(d.data().km_final) || 0;
+                    if (km > lastKm) lastKm = km;
+                });
+            }
+            document.getElementById('revisao-km-inicial').value = lastKm;
+        }).catch(err => console.error("Erro ao carregar odômetro padrão:", err));
+    }
+    modal.style.display = 'flex';
+}
+
+function fecharRevisaoKmModal() {
+    document.getElementById('modal-revisao-km').style.display = 'none';
+}
+
+async function saveRevisaoKm(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando revisão...');
+    const id = document.getElementById('revisao-km-id').value;
+    const nome = document.getElementById('revisao-km-nome').value;
+    const valor = parseFloat(document.getElementById('revisao-km-valor').value.replace(',', '.')) || 0;
+    const kmInicial = parseFloat(document.getElementById('revisao-km-inicial').value) || 0;
+    const kmTotal = parseFloat(document.getElementById('revisao-km-total').value) || 0;
+
+    try {
+        const data = {
+            nome: nome,
+            valor: valor,
+            km_inicial: kmInicial,
+            km_total: kmTotal,
+            data_limite: '',
+            uid: currentUser.uid,
+            updatedAt: new Date()
+        };
+
+        if (id) {
+            await updateDoc(doc(db, "manutencoes", id), data);
+        } else {
+            data.alerta_ativo = true;
+            data.historico = [];
+            data.arquivado = false;
+            await addDoc(collection(db, "manutencoes"), data);
+        }
+
+        fecharRevisaoKmModal();
+        await loadFinancas();
+        checkMaintenanceAlerts();
+    } catch (err) {
+        console.error("Erro ao salvar revisão:", err);
+        alert("Erro ao salvar revisão.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function duplicarRevisao(revisao) {
+    if (!confirm(`Deseja duplicar a revisão "${revisao.nome}"?\n\nIsso criará uma nova caixinha de revisão com o mesmo nome e valor alvo, zerada para a próxima troca.`)) return;
+    
+    showLoader(true, 'Duplicando revisão...');
+    try {
+        const qLast = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
+        const lastSnap = await getDocs(qLast);
+        let currentKm = parseFloat(revisao.km_inicial) || 0;
+        if (!lastSnap.empty) {
+            lastSnap.forEach(d => {
+                const km = parseFloat(d.data().km_final) || 0;
+                if (km > currentKm) currentKm = km;
+            });
+        }
+
+        const dataObj = {
+            nome: revisao.nome,
+            valor: revisao.valor,
+            km_inicial: currentKm,
+            km_total: revisao.km_total,
+            data_limite: '',
+            uid: currentUser.uid,
+            alerta_ativo: true,
+            historico: [],
+            arquivado: false,
+            updatedAt: new Date()
+        };
+
+        await addDoc(collection(db, "manutencoes"), dataObj);
+        await loadFinancas();
+        checkMaintenanceAlerts();
+        alert(`Revisão "${revisao.nome}" duplicada com sucesso!`);
+    } catch (e) {
+        console.error("Erro ao duplicar revisão:", e);
+        alert("Erro ao duplicar revisão.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function arquivarMetaOuRevisao(id, nome) {
+    if (!confirm(`Deseja arquivar a caixinha "${nome}"?\n\nEla será ocultada desta tela, mas você poderá consultá-la e restaurá-la a qualquer momento em "Consultar Arquivados".`)) return;
+    
+    showLoader(true, 'Arquivando...');
+    try {
+        await updateDoc(doc(db, "manutencoes", id), {
+            arquivado: true
+        });
+        await loadFinancas();
+        checkMaintenanceAlerts();
+    } catch (e) {
+        console.error("Erro ao arquivar:", e);
+        alert("Erro ao arquivar.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function openArquivadosModal() {
+    const modal = document.getElementById('modal-arquivados');
+    const tbody = document.getElementById('tbody-arquivados');
+    tbody.innerHTML = '';
+
+    showLoader(true, 'Buscando caixinhas arquivadas...');
+    try {
+        const q = query(
+            collection(db, "manutencoes"),
+            where("uid", "==", currentUser.uid),
+            where("arquivado", "==", true)
+        );
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 20px;">Nenhuma caixinha arquivada.</td></tr>`;
+        } else {
+            snap.forEach(docSnap => {
+                const item = docSnap.data();
+                const id = docSnap.id;
+                const isLivre = (parseFloat(item.km_total) || 0) === 0;
+                
+                let saldo = 0;
+                if (item.historico && Array.isArray(item.historico)) {
+                    item.historico.forEach(t => {
+                        if (t.tipo === 'entrada') saldo += parseFloat(t.valor) || 0;
+                        else if (t.tipo === 'saida') saldo -= parseFloat(t.valor) || 0;
+                    });
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: bold;">${item.nome}</td>
+                    <td><span class="turno-badge" style="background: ${isLivre ? 'rgba(50, 115, 220, 0.2)' : 'rgba(0, 209, 178, 0.2)'}; color: ${isLivre ? 'var(--accent-color)' : 'var(--primary-color)'};">${isLivre ? 'Meta' : 'Revisão'}</span></td>
+                    <td>${isLivre ? (item.data_limite ? item.data_limite.split('-').reverse().join('/') : '--') : `${item.km_total} KM`}</td>
+                    <td style="font-weight: bold; color: var(--success-color);">${formatCurrency(saldo)} / ${formatCurrency(item.valor)}</td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn-desarquivar btn-small" title="Desarquivar (Restaurar)" style="background: rgba(35, 209, 96, 0.2); color: var(--success-color); border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">📂 Desarquivar</button>
+                            <button class="btn-excluir-def btn-small btn-delete" title="Excluir Definitivamente" style="background: rgba(255, 56, 96, 0.2); color: var(--danger-color); border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🗑️ Excluir</button>
+                        </div>
+                    </td>
+                `;
+
+                tr.querySelector('.btn-desarquivar').onclick = async () => {
+                    if (confirm(`Deseja restaurar a caixinha "${item.nome}" para o painel ativo?`)) {
+                        showLoader(true, 'Restaurando...');
+                        try {
+                            await updateDoc(doc(db, "manutencoes", id), { arquivado: false });
+                            modal.style.display = 'none';
+                            await loadFinancas();
+                            checkMaintenanceAlerts();
+                        } catch (err) {
+                            console.error(err);
+                        } finally {
+                            showLoader(false);
+                        }
+                    }
+                };
+
+                tr.querySelector('.btn-excluir-def').onclick = async () => {
+                    if (confirm(`Deseja EXCLUIR DEFINITIVAMENTE a caixinha "${item.nome}" e todo o seu histórico?\n\nEsta ação NÃO pode ser desfeita!`)) {
+                        showLoader(true, 'Excluindo permanentemente...');
+                        try {
+                            await deleteDoc(doc(db, "manutencoes", id));
+                            modal.style.display = 'none';
+                            await loadFinancas();
+                            checkMaintenanceAlerts();
+                        } catch (err) {
+                            console.error(err);
+                        } finally {
+                            showLoader(false);
+                        }
+                    }
+                };
+
+                tbody.appendChild(tr);
+            });
+        }
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.error("Erro ao carregar arquivados:", e);
+        alert("Erro ao buscar arquivados.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function excluirCaixinhaDireto(id, nome) {
+    if (!confirm(`Deseja EXCLUIR DEFINITIVAMENTE a caixinha "${nome}" e todo o seu histórico de depósitos/retiradas?\n\nEsta ação NÃO pode ser desfeita!`)) return;
+
+    showLoader(true, 'Excluindo caixinha...');
+    try {
+        await deleteDoc(doc(db, "manutencoes", id));
+        await loadFinancas();
+        checkMaintenanceAlerts();
+    } catch (e) {
+        console.error("Erro ao excluir caixinha:", e);
+        alert("Erro ao excluir caixinha.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function excluirVeiculoDireto(id, nome) {
+    if (!confirm(`Deseja realmente excluir o veículo "${nome}"?\n\nEle será removido das suas opções, mas os registros de abastecimentos anteriores associados a ele não serão apagados.`)) return;
+
+    showLoader(true, 'Excluindo veículo...');
+    try {
+        if (userConfig.veiculos && Array.isArray(userConfig.veiculos)) {
+            userConfig.veiculos = userConfig.veiculos.filter(v => v.id !== id);
+            await setDoc(doc(db, "configs", currentUser.uid), userConfig);
+            await loadFinancas();
+        }
+    } catch (e) {
+        console.error("Erro ao excluir veículo:", e);
+        alert("Erro ao excluir veículo.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function excluirCartaoDireto(id, nome) {
+    if (!confirm(`Deseja realmente excluir o cartão/método "${nome}"?\n\nEle será removido das suas opções, mas as despesas anteriores associadas a ele não serão apagadas.`)) return;
+
+    showLoader(true, 'Excluindo cartão...');
+    try {
+        if (userConfig.cartoes && Array.isArray(userConfig.cartoes)) {
+            userConfig.cartoes = userConfig.cartoes.filter(c => c.id !== id);
+            await setDoc(doc(db, "configs", currentUser.uid), userConfig);
+            await loadFinancas();
+        }
+    } catch (e) {
+        console.error("Erro ao excluir cartão:", e);
+        alert("Erro ao excluir cartão.");
+    } finally {
+        showLoader(false);
+    }
 }
 
