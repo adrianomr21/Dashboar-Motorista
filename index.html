@@ -26,8 +26,8 @@
                     <span class="tab-icon">📈</span>
                 </button>
                 <button id="tab-abastecimento" class="tab-btn">
-                    <span class="tab-text">Gastos</span>
-                    <span class="tab-icon">💸</span>
+                    <span class="tab-text">Finanças</span>
+                    <span class="tab-icon">💰</span>
                 </button>
                 <button id="tab-relatorio" class="tab-btn">
                     <span class="tab-text">Relatório</span>
@@ -424,17 +424,37 @@
             </section>
         </section>
 
-        <!-- SEÇÃO DE GASTOS -->
+        <!-- SEÇÃO DE FINANÇAS -->
         <section id="section-abastecimento" class="section" style="display: none;">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin-bottom: 0;">💸 Meus Gastos</h3>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btnAddAbastecimento" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0;">+ Abastecimento</button>
-                    <button id="btnAddGastoGeral" class="secondary-btn" style="width: auto; padding: 10px 20px; margin-top: 0; background: var(--accent-color); color: white;">+ Novo Gasto</button>
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="margin-bottom: 0;">💰 Finanças & Gastos</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="btnAddAbastecimento" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0; font-size: 0.9rem;">⛽ + Abastecimento</button>
+                    <button id="btnAddGastoGeral" class="secondary-btn" style="width: auto; padding: 10px 20px; margin-top: 0; background: var(--accent-color); color: white; border-color: var(--accent-color); font-size: 0.9rem;">💳 + Novo Gasto</button>
+                    <button id="btnAddRevisaoFinancas" class="primary-btn" style="width: auto; padding: 10px 20px; margin-top: 0; background: #00d1b2; color: black; border-color: #00d1b2; font-size: 0.9rem;">🔧 + Nova Revisão</button>
                 </div>
             </div>
-            <div id="abastecimento-cards" class="maintenance-grid">
-                <!-- Cards serão inseridos aqui -->
+            
+            <!-- Resumo Geral Financeiro da Tela -->
+            <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #1e1e1e 0%, #121212 100%); border: 1px solid #333; padding: 15px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center;">
+                    <div>
+                        <span style="font-size: 0.85rem; color: #888;">⛽ Total Abastecido (Período)</span>
+                        <h3 id="financas-total-abastecido" style="color: var(--primary-color); margin-top: 5px;">R$ 0,00</h3>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.85rem; color: #888;">💳 Outros Gastos (Período)</span>
+                        <h3 id="financas-total-outros" style="color: var(--accent-color); margin-top: 5px;">R$ 0,00</h3>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.85rem; color: #888;">🔧 Juntado p/ Manutenções</span>
+                        <h3 id="financas-total-juntado" style="color: #00d1b2; margin-top: 5px;">R$ 0,00</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="financas-caixinhas-grid" class="maintenance-grid">
+                <!-- Cards/Caixinhas inseridos via JS -->
             </div>
         </section>
 
@@ -496,7 +516,7 @@
                 <!-- Gerenciar Despesas Variáveis (KMs) -->
                 <div id="anchor-manutencao" class="form-group-title" style="margin-top: 30px;">🛠️ Gerenciar Despesas Variáveis (KMs)</div>
                 <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">
-                    Adicione itens como Troca de Óleo, Pneus e Revisão. O app calculará o custo por KM automaticamente.
+                    Adicione revisões (Troca de Óleo, Pneus). Para metas livres onde quer apenas juntar dinheiro (ex: IPVA, Seguro), configure os campos de KM com <b>0</b>.
                 </p>
                 
                 <form id="form-manutencao" class="grid-form card" style="background: #252525; border: 1px solid #333;">
@@ -516,6 +536,10 @@
                     <div class="input-group">
                         <label>Valor (R$)</label>
                         <input type="number" id="manut-valor" required step="0.01">
+                    </div>
+                    <div class="input-group" id="container-manut-data-limite" style="display: none;">
+                        <label>Data Limite (Prazo da meta)</label>
+                        <input type="date" id="manut-data-limite">
                     </div>
                     <div class="button-group full-width" style="display: flex; gap: 10px;">
                         <button type="submit" id="saveManutBtn" class="primary-btn" style="flex: 2; font-size: 0.9rem; padding: 12px;">Adicionar Item</button>
@@ -563,12 +587,29 @@
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label>Forma de Pagamento</label>
+                        <select id="gasto-pagamento" required>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Pix">Pix</option>
+                            <option value="Débito">Débito</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="gasto-parcelado-container" style="display: none; align-items: center; gap: 8px; flex-direction: row; height: 100%; padding-top: 25px;">
+                        <input type="checkbox" id="gasto-parcelado" style="width: 20px; height: 20px; cursor: pointer; margin: 0;">
+                        <label for="gasto-parcelado" style="cursor: pointer; margin: 0;">Parcelado?</label>
+                    </div>
+                    <div class="input-group full-width" id="gasto-num-parcelas-container" style="display: none;">
+                        <label>Número de Parcelas</label>
+                        <input type="number" id="gasto-num-parcelas" min="1" max="60" value="1">
+                    </div>
                     <div class="input-group full-width">
                         <label>Descrição</label>
                         <input type="text" id="gasto-descricao" required placeholder="Ex: Troca de palheta">
                     </div>
                     <div class="input-group full-width">
-                        <label>Valor (R$)</label>
+                        <label>Valor Total (R$)</label>
                         <input type="tel" id="gasto-valor" inputmode="numeric" required placeholder="0,00">
                     </div>
                     <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
@@ -724,6 +765,143 @@
                 <div class="summary-footer" style="margin-top: 20px;">
                     <button id="closeSummaryFooterBtn" class="primary-btn full-width">ENTENDI, CONTINUAR</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- MODAL HISTÓRICO ABASTECIMENTO -->
+        <div id="modal-historico-abastecimento" class="modal-overlay" style="display: none;">
+            <div class="modal-content card" style="max-width: 800px; width: 95%;">
+                <div class="modal-header">
+                    <h3>⛽ Histórico de Abastecimentos</h3>
+                    <button id="closeHistAbsBtn" class="close-btn">&times;</button>
+                </div>
+                <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+                    <button id="btnNovoAbsHist" class="primary-btn" style="width: auto; padding: 8px 15px; margin: 0; font-size: 0.9rem;">+ Registrar Abastecimento</button>
+                </div>
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table id="table-hist-abastecimento">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>KM Anterior</th>
+                                <th>KM Atual</th>
+                                <th>Valor Total</th>
+                                <th>Consumo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-hist-abastecimento">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="secondary-btn full-width" id="closeHistAbsFooterBtn">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL HISTÓRICO OUTROS GASTOS -->
+        <div id="modal-historico-outros-gastos" class="modal-overlay" style="display: none;">
+            <div class="modal-content card" style="max-width: 900px; width: 95%;">
+                <div class="modal-header">
+                    <h3>💳 Histórico de Outros Gastos</h3>
+                    <button id="closeHistOutrosBtn" class="close-btn">&times;</button>
+                </div>
+                <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+                    <button id="btnNovoGastoHist" class="primary-btn" style="width: auto; padding: 8px 15px; margin: 0; background: var(--accent-color); border-color: var(--accent-color); color: white; font-size: 0.9rem;">+ Registrar Gasto</button>
+                </div>
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table id="table-hist-outros">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                                <th>Pagamento</th>
+                                <th>Valor</th>
+                                <th>Parcelas / Prestação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-hist-outros">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="secondary-btn full-width" id="closeHistOutrosFooterBtn">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL HISTÓRICO CAIXINHA MANUTENÇÃO -->
+        <div id="modal-historico-manutencao" class="modal-overlay" style="display: none;">
+            <div class="modal-content card" style="max-width: 650px; width: 95%;">
+                <div class="modal-header">
+                    <h3 id="hist-manut-titulo">🔧 Extrato de Caixinha</h3>
+                    <button id="closeHistManutBtn" class="close-btn">&times;</button>
+                </div>
+                <div class="card" style="background: rgba(0, 209, 178, 0.05); border: 1px dashed var(--primary-color); margin-bottom: 15px; padding: 15px; text-align: center;">
+                    <span style="font-size: 0.9rem; color: #888; display: block; margin-bottom: 2px;">Saldo Acumulado (Poupado)</span>
+                    <h2 id="hist-manut-saldo" style="color: var(--primary-color); margin: 0; font-size: 2rem;">R$ 0,00</h2>
+                    <span id="hist-manut-meta" style="font-size: 0.8rem; color: #aaa; display: block; margin-top: 5px;">Meta de Custo: R$ 0,00</span>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="btnPouparHist" class="primary-btn" style="flex: 1; margin: 0; background: var(--success-color); border-color: var(--success-color); font-size: 0.95rem;">+ Depositar (Poupar)</button>
+                    <button id="btnTrocarHist" class="primary-btn" style="flex: 1; margin: 0; background: var(--danger-color); border-color: var(--danger-color); font-size: 0.95rem;">🔧 Realizar Troca/Retirada</button>
+                </div>
+                <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                    <table id="table-hist-manutencao">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Transação</th>
+                                <th>Valor</th>
+                                <th>Descrição</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-hist-manutencao">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="secondary-btn full-width" id="closeHistManutFooterBtn">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL TRANSAÇÃO DE CAIXINHA -->
+        <div id="modal-transacao-caixinha" class="modal-overlay" style="display: none;">
+            <div class="modal-content card" style="max-width: 450px; width: 95%;">
+                <div class="modal-header">
+                    <h3 id="trans-caixinha-titulo">💰 Nova Transação</h3>
+                    <button id="closeTransCaixinhaBtn" class="close-btn">&times;</button>
+                </div>
+                <form id="form-transacao-caixinha" class="grid-form">
+                    <input type="hidden" id="trans-caixinha-tipo">
+                    <input type="hidden" id="trans-caixinha-manut-id">
+                    
+                    <div class="input-group full-width">
+                        <label>Data</label>
+                        <input type="date" id="trans-caixinha-data" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Valor (R$)</label>
+                        <input type="tel" id="trans-caixinha-valor" inputmode="numeric" required placeholder="0,00">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Descrição</label>
+                        <input type="text" id="trans-caixinha-desc" placeholder="Ex: Poupança mensal / Compra de peças">
+                    </div>
+                    
+                    <div class="button-group full-width" style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" id="saveTransCaixinhaBtn" class="primary-btn" style="flex: 1;">Confirmar</button>
+                        <button type="button" id="closeTransCaixinhaFooterBtn" class="secondary-btn" style="flex: 1;">Cancelar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </main>

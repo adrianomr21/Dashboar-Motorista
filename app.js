@@ -184,9 +184,61 @@ function initApp() {
     setupAbastecimento();
     setupGastoGeral();
 
+    // Configura botões e form de caixinhas
+    const formTransCaixinha = document.getElementById('form-transacao-caixinha');
+    if (formTransCaixinha) {
+        formTransCaixinha.onsubmit = (e) => salvarTransacaoCaixinha(e);
+    }
+    
+    const closeTransCaixinhaBtn = document.getElementById('closeTransCaixinhaBtn');
+    if (closeTransCaixinhaBtn) closeTransCaixinhaBtn.onclick = () => fecharModalTransacaoCaixinha();
+    
+    const closeTransCaixinhaFooterBtn = document.getElementById('closeTransCaixinhaFooterBtn');
+    if (closeTransCaixinhaFooterBtn) closeTransCaixinhaFooterBtn.onclick = () => fecharModalTransacaoCaixinha();
+
+    const closeHistAbsBtn = document.getElementById('closeHistAbsBtn');
+    if (closeHistAbsBtn) closeHistAbsBtn.onclick = () => document.getElementById('modal-historico-abastecimento').style.display = 'none';
+    
+    const closeHistAbsFooterBtn = document.getElementById('closeHistAbsFooterBtn');
+    if (closeHistAbsFooterBtn) closeHistAbsFooterBtn.onclick = () => document.getElementById('modal-historico-abastecimento').style.display = 'none';
+
+    const closeHistOutrosBtn = document.getElementById('closeHistOutrosBtn');
+    if (closeHistOutrosBtn) closeHistOutrosBtn.onclick = () => document.getElementById('modal-historico-outros-gastos').style.display = 'none';
+    
+    const closeHistOutrosFooterBtn = document.getElementById('closeHistOutrosFooterBtn');
+    if (closeHistOutrosFooterBtn) closeHistOutrosFooterBtn.onclick = () => document.getElementById('modal-historico-outros-gastos').style.display = 'none';
+
+    const closeHistManutBtn = document.getElementById('closeHistManutBtn');
+    if (closeHistManutBtn) closeHistManutBtn.onclick = () => document.getElementById('modal-historico-manutencao').style.display = 'none';
+    
+    const closeHistManutFooterBtn = document.getElementById('closeHistManutFooterBtn');
+    if (closeHistManutFooterBtn) closeHistManutFooterBtn.onclick = () => document.getElementById('modal-historico-manutencao').style.display = 'none';
+
+    const btnNovoAbsHist = document.getElementById('btnNovoAbsHist');
+    if (btnNovoAbsHist) btnNovoAbsHist.onclick = () => {
+        document.getElementById('modal-historico-abastecimento').style.display = 'none';
+        openAbastecimentoModal();
+    };
+
+    const btnNovoGastoHist = document.getElementById('btnNovoGastoHist');
+    if (btnNovoGastoHist) btnNovoGastoHist.onclick = () => {
+        document.getElementById('modal-historico-outros-gastos').style.display = 'none';
+        openGastoGeralModal();
+    };
+
+    const btnAddRevisao = document.getElementById('btnAddRevisaoFinancas');
+    if (btnAddRevisao) {
+        btnAddRevisao.onclick = () => {
+            switchTab('config');
+            const anchor = document.getElementById('anchor-manutencao');
+            if (anchor) anchor.scrollIntoView({ behavior: 'smooth' });
+        };
+    }
+
+
     document.getElementById('updateBtn').onclick = () => {
         if (currentTab === 'dashboard') loadDashboardData();
-        if (currentTab === 'abastecimento') loadAbastecimentos();
+        if (currentTab === 'abastecimento') loadFinancas();
         if (currentTab === 'relatorio') loadRelatorioData();
     };
     document.getElementById('logoutBtn').onclick = () => handleLogout();
@@ -194,6 +246,8 @@ function initApp() {
     document.getElementById('form-config').onsubmit = (e) => saveUserConfig(e);
     document.getElementById('form-manutencao').onsubmit = (e) => saveManutencao(e);
     document.getElementById('cancelManutBtn').onclick = () => resetManutForm();
+    document.getElementById('manut-km-total').addEventListener('input', updateDataLimiteVisibility);
+    updateDataLimiteVisibility();
     document.getElementById('cancelEditBtn').onclick = () => {
         const isEditing = !!document.getElementById('field-id').value;
         const activeShift = localStorage.getItem(ACTIVE_SHIFT_KEY);
@@ -220,10 +274,18 @@ function initApp() {
         const modalAbs = document.getElementById('modal-abastecimento');
         const modalGasto = document.getElementById('modal-gasto-geral');
         const modalSummary = document.getElementById('modal-resumo-registro');
+        const modalHistAbs = document.getElementById('modal-historico-abastecimento');
+        const modalHistOutros = document.getElementById('modal-historico-outros-gastos');
+        const modalHistManut = document.getElementById('modal-historico-manutencao');
+        const modalTransCaixinha = document.getElementById('modal-transacao-caixinha');
         if (event.target == modalDet) closeModal();
         if (event.target == modalAbs) closeAbastecimentoModal();
         if (event.target == modalGasto) closeGastoGeralModal();
         if (event.target == modalSummary) closeSummaryModal();
+        if (event.target == modalHistAbs) modalHistAbs.style.display = 'none';
+        if (event.target == modalHistOutros) modalHistOutros.style.display = 'none';
+        if (event.target == modalHistManut) modalHistManut.style.display = 'none';
+        if (event.target == modalTransCaixinha) modalTransCaixinha.style.display = 'none';
     };
     // Lógica de Importação
     const btnImport = document.getElementById('btnShowImport');
@@ -254,7 +316,7 @@ async function loadUserConfig() {
         }
         fillConfigForm();
         await loadManutencoes(); // Aguarda manutenções carregarem
-        await loadAbastecimentos(); // Carrega abastecimentos (usa datas default inicial)
+        await loadFinancas(); // Carrega finanças (usa datas default inicial)
         checkMaintenanceAlerts(); // Agora checa os alertas
     } catch (e) {
         console.error("Erro ao carregar configs:", e);
@@ -315,7 +377,7 @@ function setupNavigation() {
     });
     tabs.abastecimento.addEventListener('click', () => {
         switchTab('abastecimento');
-        loadAbastecimentos();
+        loadFinancas();
     });
     tabs.relatorio.addEventListener('click', () => {
         switchTab('relatorio');
@@ -441,6 +503,28 @@ function setupAbastecimento() {
 function setupGastoGeral() {
     const form = document.getElementById('form-gasto-geral');
     const valorInput = document.getElementById('gasto-valor');
+    const pagamentoSelect = document.getElementById('gasto-pagamento');
+    const parceladoContainer = document.getElementById('gasto-parcelado-container');
+    const numParcelasContainer = document.getElementById('gasto-num-parcelas-container');
+    const parceladoCheckbox = document.getElementById('gasto-parcelado');
+
+    pagamentoSelect.addEventListener('change', () => {
+        if (pagamentoSelect.value === 'Cartão de Crédito') {
+            parceladoContainer.style.display = 'flex';
+        } else {
+            parceladoContainer.style.display = 'none';
+            parceladoCheckbox.checked = false;
+            numParcelasContainer.style.display = 'none';
+        }
+    });
+
+    parceladoCheckbox.addEventListener('change', () => {
+        if (parceladoCheckbox.checked) {
+            numParcelasContainer.style.display = 'block';
+        } else {
+            numParcelasContainer.style.display = 'none';
+        }
+    });
 
     const applyMask = (input, decimals) => {
         input.addEventListener('input', (e) => {
@@ -458,6 +542,7 @@ function setupGastoGeral() {
     applyMask(valorInput, 2);
 
     document.getElementById('btnAddGastoGeral').onclick = () => openGastoGeralModal();
+
     document.getElementById('closeGastoGeralBtn').onclick = () => closeGastoGeralModal();
     document.getElementById('closeGastoFooterBtn').onclick = () => closeGastoGeralModal();
 
@@ -472,16 +557,45 @@ async function openGastoGeralModal(data = null) {
     const form = document.getElementById('form-gasto-geral');
     form.reset();
 
+    const pagamentoSelect = document.getElementById('gasto-pagamento');
+    const parceladoContainer = document.getElementById('gasto-parcelado-container');
+    const numParcelasContainer = document.getElementById('gasto-num-parcelas-container');
+    const parceladoCheckbox = document.getElementById('gasto-parcelado');
+
     if (data) {
         document.getElementById('gasto-id').value = data.id;
         document.getElementById('gasto-data').value = data.data;
         document.getElementById('gasto-tipo').value = data.tipo;
         document.getElementById('gasto-descricao').value = data.descricao;
         document.getElementById('gasto-valor').value = data.valor.toFixed(2).replace('.', ',');
+        
+        const fp = data.forma_pagamento || "Dinheiro";
+        pagamentoSelect.value = fp;
+        if (fp === 'Cartão de Crédito') {
+            parceladoContainer.style.display = 'flex';
+            parceladoCheckbox.checked = data.parcelado || false;
+            if (data.parcelado) {
+                numParcelasContainer.style.display = 'block';
+                document.getElementById('gasto-num-parcelas').value = data.num_parcelas || 1;
+            } else {
+                numParcelasContainer.style.display = 'none';
+                document.getElementById('gasto-num-parcelas').value = 1;
+            }
+        } else {
+            parceladoContainer.style.display = 'none';
+            parceladoCheckbox.checked = false;
+            numParcelasContainer.style.display = 'none';
+            document.getElementById('gasto-num-parcelas').value = 1;
+        }
         document.querySelector('#modal-gasto-geral h3').textContent = '💸 Editar Gasto';
     } else {
         document.getElementById('gasto-id').value = '';
         document.getElementById('gasto-data').value = getLocalDate();
+        pagamentoSelect.value = 'Dinheiro';
+        parceladoContainer.style.display = 'none';
+        parceladoCheckbox.checked = false;
+        numParcelasContainer.style.display = 'none';
+        document.getElementById('gasto-num-parcelas').value = 1;
         document.querySelector('#modal-gasto-geral h3').textContent = '💸 Registrar Gasto';
     }
     modal.style.display = 'flex';
@@ -495,24 +609,85 @@ async function saveGastoGeral() {
     showLoader(true, 'Salvando gasto...');
     const id = document.getElementById('gasto-id').value;
     const valorVal = parseFloat(document.getElementById('gasto-valor').value.replace(',', '.')) || 0;
-
-    const data = {
-        data: document.getElementById('gasto-data').value,
-        tipo: document.getElementById('gasto-tipo').value,
-        descricao: document.getElementById('gasto-descricao').value,
-        valor: valorVal,
-        uid: currentUser.uid,
-        timestamp: new Date()
-    };
+    const fp = document.getElementById('gasto-pagamento').value;
+    const parcelado = fp === 'Cartão de Crédito' && document.getElementById('gasto-parcelado').checked;
+    const numParcelas = parcelado ? (parseInt(document.getElementById('gasto-num-parcelas').value) || 1) : 1;
+    const descOriginal = document.getElementById('gasto-descricao').value;
+    const dataOriginalStr = document.getElementById('gasto-data').value;
+    const tipoGasto = document.getElementById('gasto-tipo').value;
 
     try {
         if (id) {
-            await updateDoc(doc(db, "gastos_gerais", id), data);
+            // Se for edição, atualiza apenas o documento da parcela ou gasto individual
+            const updateData = {
+                data: dataOriginalStr,
+                tipo: tipoGasto,
+                descricao: descOriginal,
+                valor: valorVal,
+                forma_pagamento: fp,
+                parcelado: parcelado,
+                num_parcelas: numParcelas,
+                uid: currentUser.uid,
+                updatedAt: new Date()
+            };
+            await updateDoc(doc(db, "gastos_gerais", id), updateData);
         } else {
-            await addDoc(collection(db, "gastos_gerais"), data);
+            // Criação de novos documentos
+            if (parcelado && numParcelas > 1) {
+                const grupoId = 'g_' + new Date().getTime();
+                const baseVal = Math.floor((valorVal / numParcelas) * 100) / 100;
+                const diff = parseFloat((valorVal - (baseVal * numParcelas)).toFixed(2));
+
+                for (let i = 1; i <= numParcelas; i++) {
+                    const valParc = (i === numParcelas) ? parseFloat((baseVal + diff).toFixed(2)) : baseVal;
+                    
+                    const dataCompra = new Date(dataOriginalStr + 'T00:00:00');
+                    const dataVenc = new Date(dataCompra.getFullYear(), dataCompra.getMonth() + (i - 1), dataCompra.getDate());
+                    const y = dataVenc.getFullYear();
+                    const m = String(dataVenc.getMonth() + 1).padStart(2, '0');
+                    const d = String(dataVenc.getDate()).padStart(2, '0');
+                    const dataVencStr = `${y}-${m}-${d}`;
+
+                    const dataGasto = {
+                        data: dataVencStr,
+                        tipo: tipoGasto,
+                        descricao: `${descOriginal} (${i}/${numParcelas})`,
+                        valor: valParc,
+                        forma_pagamento: 'Cartão de Crédito',
+                        parcelado: true,
+                        parcela_numero: i,
+                        num_parcelas: numParcelas,
+                        grupo_id: grupoId,
+                        pago: false,
+                        uid: currentUser.uid,
+                        createdAt: new Date()
+                    };
+                    await addDoc(collection(db, "gastos_gerais"), dataGasto);
+                }
+            } else {
+                // Gasto à vista (Pix, dinheiro, débito ou cartão de crédito à vista)
+                const dataGasto = {
+                    data: dataOriginalStr,
+                    tipo: tipoGasto,
+                    descricao: descOriginal,
+                    valor: valorVal,
+                    forma_pagamento: fp,
+                    parcelado: false,
+                    num_parcelas: 1,
+                    pago: fp !== 'Cartão de Crédito', // Cartão à vista começa como não pago (pendente fatura)
+                    uid: currentUser.uid,
+                    createdAt: new Date()
+                };
+                await addDoc(collection(db, "gastos_gerais"), dataGasto);
+            }
         }
+        
         closeGastoGeralModal();
-        await loadAbastecimentos();
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        } else {
+            await loadAbastecimentos();
+        }
         if (currentTab === 'dashboard') loadDashboardData();
     } catch (e) {
         console.error("Erro ao salvar gasto:", e);
@@ -611,7 +786,11 @@ async function saveAbastecimento() {
             await addDoc(collection(db, "abastecimentos"), data);
         }
         closeAbastecimentoModal();
-        await loadAbastecimentos();
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        } else {
+            await loadAbastecimentos();
+        }
         if (currentTab === 'dashboard') loadDashboardData(); // Atualiza dashboard se estiver lá
     } catch (e) {
         console.error("Erro ao salvar abastecimento:", e);
@@ -723,14 +902,47 @@ function renderAbastecimentoCards(data) {
 }
 
 async function deleteGastoGeral(id) {
-    if (!confirm('Deseja excluir este gasto?')) return;
     showLoader(true, 'Excluindo...');
     try {
-        await deleteDoc(doc(db, "gastos_gerais", id));
-        await loadAbastecimentos();
+        const docRef = doc(db, "gastos_gerais", id);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.grupo_id) {
+                if (confirm('Este gasto faz parte de uma compra parcelada.\n\nDeseja excluir TODAS as parcelas deste parcelamento?\n(Clique em Cancelar para excluir apenas a parcela atual)')) {
+                    // Exclui todas as parcelas do grupo
+                    const q = query(collection(db, "gastos_gerais"), where("grupo_id", "==", data.grupo_id));
+                    const snap = await getDocs(q);
+                    const batchPromises = [];
+                    snap.forEach(d => {
+                        batchPromises.push(deleteDoc(doc(db, "gastos_gerais", d.id)));
+                    });
+                    await Promise.all(batchPromises);
+                } else {
+                    // Exclui apenas a parcela selecionada
+                    await deleteDoc(docRef);
+                }
+            } else {
+                // Gasto comum
+                if (confirm('Deseja excluir este gasto?')) {
+                    await deleteDoc(docRef);
+                } else {
+                    showLoader(false);
+                    return;
+                }
+            }
+        }
+        
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        } else {
+            await loadAbastecimentos();
+        }
         if (currentTab === 'dashboard') loadDashboardData();
     } catch (e) {
-        console.error(e);
+        console.error("Erro ao excluir gasto:", e);
+        alert('Erro ao excluir gasto.');
     } finally {
         showLoader(false);
     }
@@ -741,7 +953,11 @@ async function deleteAbastecimento(id) {
     showLoader(true, 'Excluindo...');
     try {
         await deleteDoc(doc(db, "abastecimentos", id));
-        await loadAbastecimentos();
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        } else {
+            await loadAbastecimentos();
+        }
     } catch (e) {
         console.error(e);
     } finally {
@@ -1731,11 +1947,13 @@ async function saveManutencao(e) {
     showLoader(true, 'Salvando manutenção...');
     
     const id = document.getElementById('manut-id').value;
+    const kmTotal = parseFloat(document.getElementById('manut-km-total').value) || 0;
     const data = {
         nome: document.getElementById('manut-nome').value,
         km_inicial: parseFloat(document.getElementById('manut-km-inicial').value) || 0,
-        km_total: parseFloat(document.getElementById('manut-km-total').value) || 0,
+        km_total: kmTotal,
         valor: parseFloat(document.getElementById('manut-valor').value) || 0,
+        data_limite: kmTotal === 0 ? document.getElementById('manut-data-limite').value : '',
         uid: currentUser.uid,
         updatedAt: new Date()
     };
@@ -1744,10 +1962,16 @@ async function saveManutencao(e) {
         if (id) {
             await updateDoc(doc(db, "manutencoes", id), data);
         } else {
+            // Inicializa novo registro com alerta e histórico de caixinha
+            data.alerta_ativo = true;
+            data.historico = [];
             await addDoc(collection(db, "manutencoes"), data);
         }
         resetManutForm();
         await loadManutencoes();
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        }
         checkMaintenanceAlerts(); // Re-verifica alertas ao mudar config
     } catch (e) {
         console.error("Erro ao salvar manutenção:", e);
@@ -1767,6 +1991,9 @@ async function deleteManutencao(id) {
     } finally {
         showLoader(false);
         loadManutencoes();
+        if (currentTab === 'abastecimento') {
+            await loadFinancas();
+        }
         checkMaintenanceAlerts();
     }
 }
@@ -1778,13 +2005,16 @@ function renderManutCards(manuts) {
     manuts.forEach(m => {
         const card = document.createElement('div');
         card.className = 'maintenance-card';
+        
+        const isLivre = (parseFloat(m.km_total) || 0) === 0;
+
         card.innerHTML = `
             <h4>${m.nome}</h4>
             <div class="maintenance-info">
-                <div>KM Inicial: <b>${m.km_inicial}</b></div>
-                <div>Intervalo: <b>${m.km_total} km</b></div>
+                <div>KM Inicial: <b>${isLivre ? 'Meta Financeira' : m.km_inicial}</b></div>
+                <div>Intervalo: <b>${isLivre ? 'Sem KM' : m.km_total + ' km'}</b></div>
                 <div>Valor: <b>${formatCurrency(m.valor)}</b></div>
-                <div>Próxima em: <b>${m.km_inicial + m.km_total} km</b></div>
+                <div>Próxima em: <b>${isLivre ? '--' : (m.km_inicial + m.km_total) + ' km'}</b></div>
             </div>
             <div class="card-actions">
                 <button class="btn-edit-manut btn-small" style="background: var(--accent-color); color: white;">Editar</button>
@@ -1798,12 +2028,25 @@ function renderManutCards(manuts) {
     });
 }
 
+function updateDataLimiteVisibility() {
+    const totalKmVal = parseFloat(document.getElementById('manut-km-total').value);
+    const isLivre = isNaN(totalKmVal) || totalKmVal === 0;
+    const container = document.getElementById('container-manut-data-limite');
+    if (container) {
+        container.style.display = isLivre ? 'block' : 'none';
+    }
+}
+
 function editManut(m) {
     document.getElementById('manut-id').value = m.id;
     document.getElementById('manut-nome').value = m.nome;
     document.getElementById('manut-km-inicial').value = m.km_inicial;
     document.getElementById('manut-km-total').value = m.km_total;
     document.getElementById('manut-valor').value = m.valor;
+    
+    // Campo de data limite
+    document.getElementById('manut-data-limite').value = m.data_limite || '';
+    updateDataLimiteVisibility();
     
     document.getElementById('saveManutBtn').textContent = 'Atualizar Manutenção';
     document.getElementById('cancelManutBtn').style.display = 'block';
@@ -1815,6 +2058,7 @@ function editManut(m) {
 function resetManutForm() {
     document.getElementById('form-manutencao').reset();
     document.getElementById('manut-id').value = '';
+    updateDataLimiteVisibility();
     document.getElementById('saveManutBtn').textContent = 'Adicionar Manutenção';
     document.getElementById('cancelManutBtn').style.display = 'none';
 }
@@ -1850,17 +2094,51 @@ async function checkMaintenanceAlerts() {
             const m = doc.data();
             const mId = doc.id;
             
-            const kmTroca = parseFloat(m.km_inicial) || 0;
-            const kmIntervalo = parseFloat(m.km_total) || 0;
-            const kmLimite = kmTroca + kmIntervalo;
-            const kmRestante = kmLimite - currentKm;
+            // Ignora o alerta se estiver desativado nas caixinhas
+            const alertaAtivo = m.alerta_ativo !== false;
+            if (!alertaAtivo) return;
             
-            if (kmRestante <= 0) {
-                hasAlerts = true;
-                createAlertItem(alertsContainer, `🚨 Hora de: ${m.nome}! (Vencido há ${Math.abs(kmRestante).toFixed(0)} km)`, 'danger', mId);
-            } else if (kmRestante <= 500) {
-                hasAlerts = true;
-                createAlertItem(alertsContainer, `⚠️ Atenção: ${m.nome} em ${kmRestante.toFixed(0)} km.`, 'warning', mId);
+            const kmIntervalo = parseFloat(m.km_total) || 0;
+            if (kmIntervalo === 0) {
+                // Alerta por Data Limite (Meta Livre)
+                const limiteStr = m.data_limite;
+                if (limiteStr) {
+                    const dataLimite = new Date(limiteStr + 'T23:59:59');
+                    const hoje = new Date();
+                    
+                    const d1 = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+                    const d2 = Date.UTC(dataLimite.getFullYear(), dataLimite.getMonth(), dataLimite.getDate());
+                    const diffMs = d2 - d1;
+                    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    
+                    const hist = m.historico || [];
+                    const saldo = hist.reduce((acc, curr) => {
+                        return curr.tipo === 'entrada' ? acc + parseFloat(curr.valor) : acc - parseFloat(curr.valor);
+                    }, 0);
+                    
+                    if (saldo < parseFloat(m.valor)) {
+                        if (diffDias < 0) {
+                            hasAlerts = true;
+                            createAlertItem(alertsContainer, `🚨 Prazo vencido: Juntar dinheiro para ${m.nome}! (Prazo: ${limiteStr.split('-').reverse().join('/')})`, 'danger', mId);
+                        } else if (diffDias <= 30) {
+                            hasAlerts = true;
+                            createAlertItem(alertsContainer, `⚠️ Atenção: Prazo de ${m.nome} termina em ${diffDias} dias. (Falta ${formatCurrency(m.valor - saldo)})`, 'warning', mId);
+                        }
+                    }
+                }
+            } else {
+                // Alerta por Quilometragem (Revisão tradicional)
+                const kmTroca = parseFloat(m.km_inicial) || 0;
+                const kmLimite = kmTroca + kmIntervalo;
+                const kmRestante = kmLimite - currentKm;
+                
+                if (kmRestante <= 0) {
+                    hasAlerts = true;
+                    createAlertItem(alertsContainer, `🚨 Hora de: ${m.nome}! (Vencido há ${Math.abs(kmRestante).toFixed(0)} km)`, 'danger', mId);
+                } else if (kmRestante <= 500) {
+                    hasAlerts = true;
+                    createAlertItem(alertsContainer, `⚠️ Atenção: ${m.nome} em ${kmRestante.toFixed(0)} km.`, 'warning', mId);
+                }
             }
         });
 
@@ -2095,3 +2373,754 @@ function setupPWAInstall() {
         }
     });
 }
+
+// --- SISTEMA DE FINANÇAS UNIFICADAS (CAIXINHAS) ---
+let currentManutencaoId = null;
+
+async function loadFinancas() {
+    if (!currentUser) return;
+    showLoader(true, 'Carregando finanças...');
+    try {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+
+        // 1. Obter Odômetro Atual (Maior KM final registrado)
+        const qLast = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
+        const lastSnap = await getDocs(qLast);
+        let currentKm = 0;
+        if (!lastSnap.empty) {
+            lastSnap.forEach(doc => {
+                const km = parseFloat(doc.data().km_final) || 0;
+                if (km > currentKm) currentKm = km;
+            });
+        }
+
+        // 2. Buscar Abastecimentos do período
+        const qAbs = query(
+            collection(db, "abastecimentos"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end),
+            orderBy("data", "desc")
+        );
+        const absSnap = await getDocs(qAbs);
+        const abastecimentos = [];
+        let totalAbsVal = 0;
+        absSnap.forEach((doc) => {
+            const data = doc.data();
+            abastecimentos.push({ id: doc.id, collection: 'abastecimentos', ...data });
+            totalAbsVal += parseFloat(data.valor_total) || 0;
+        });
+
+        // 3. Buscar Outros Gastos do período
+        const qGeral = query(
+            collection(db, "gastos_gerais"),
+            where("uid", "==", currentUser.uid),
+            where("data", ">=", start),
+            where("data", "<=", end)
+        );
+        const geralSnap = await getDocs(qGeral);
+        const outrosGastos = [];
+        let totalOutrosVal = 0;
+
+        geralSnap.forEach((doc) => {
+            const data = doc.data();
+            outrosGastos.push({ id: doc.id, collection: 'gastos_gerais', ...data });
+            totalOutrosVal += parseFloat(data.valor) || 0;
+        });
+
+        // 4. Buscar Manutenções/Revisões
+        const qManut = query(collection(db, "manutencoes"), where("uid", "==", currentUser.uid));
+        const manutSnap = await getDocs(qManut);
+        const manuts = [];
+        let totalJuntadoManut = 0;
+        manutSnap.forEach((doc) => {
+            const data = doc.data();
+            let saldo = 0;
+            if (data.historico && Array.isArray(data.historico)) {
+                data.historico.forEach(t => {
+                    if (t.tipo === 'entrada') saldo += parseFloat(t.valor) || 0;
+                    else if (t.tipo === 'saida') saldo -= parseFloat(t.valor) || 0;
+                });
+            }
+            totalJuntadoManut += saldo;
+            manuts.push({ id: doc.id, saldo, ...data });
+        });
+
+        // 5. Buscar Faturas de Cartão Pendentes no Geral (vida inteira)
+        const qPendentesCartao = query(
+            collection(db, "gastos_gerais"),
+            where("uid", "==", currentUser.uid),
+            where("forma_pagamento", "==", "Cartão de Crédito"),
+            where("pago", "==", false)
+        );
+        const pendentesSnap = await getDocs(qPendentesCartao);
+        let totalFaturasCartaoPendentes = 0;
+        pendentesSnap.forEach(d => {
+            totalFaturasCartaoPendentes += parseFloat(d.data().valor) || 0;
+        });
+
+        // 6. Atualizar Painel de Resumos
+        document.getElementById('financas-total-abastecido').textContent = formatCurrency(totalAbsVal);
+        document.getElementById('financas-total-outros').textContent = formatCurrency(totalOutrosVal);
+        document.getElementById('financas-total-juntado').textContent = formatCurrency(totalJuntadoManut);
+
+        // 7. Renderizar Caixinhas
+        renderFinancasCards(currentKm, totalAbsVal, abastecimentos, totalOutrosVal, outrosGastos, manuts, totalFaturasCartaoPendentes);
+
+    } catch (err) {
+        console.error("Erro ao carregar finanças:", err);
+    } finally {
+        showLoader(false);
+    }
+}
+
+function renderFinancasCards(currentKm, totalAbs, abastecimentos, totalOutros, outrosGastos, manuts, totalFaturasCartaoPendentes = 0) {
+    const grid = document.getElementById('financas-caixinhas-grid');
+    grid.innerHTML = '';
+
+    // 1. CARD DE ABASTECIMENTOS
+    const cardAbs = document.createElement('div');
+    cardAbs.className = 'financas-card abastecimento-card-new';
+    cardAbs.innerHTML = `
+        <div>
+            <h3><span>⛽ Abastecimento</span> <span style="font-size: 1.5rem;">⛽</span></h3>
+            <div class="financas-card-content">
+                <div class="financas-metric-row">
+                    <span>Gasto no período:</span>
+                    <b style="color: var(--primary-color);">${formatCurrency(totalAbs)}</b>
+                </div>
+                <div class="financas-metric-row">
+                    <span>Qtd. Registros:</span>
+                    <b>${abastecimentos.length}</b>
+                </div>
+                
+                <div class="financas-card-actions" onclick="event.stopPropagation()">
+                    <button class="financas-btn-small trocar" id="btn-card-abastecer" style="flex: 1;">⛽ Abastecer</button>
+                </div>
+                
+                <p style="font-size: 0.75rem; color: #888; margin-top: 12px; text-align: center;">
+                    💡 Clique no card para ver o histórico.
+                </p>
+            </div>
+        </div>
+    `;
+    cardAbs.onclick = () => abrirModalHistoricoAbastecimento(abastecimentos);
+    
+    // Bind do clique no botão "Abastecer" do card
+    const btnCardAbs = cardAbs.querySelector('#btn-card-abastecer');
+    if (btnCardAbs) {
+        btnCardAbs.onclick = () => openAbastecimentoModal();
+    }
+    
+    grid.appendChild(cardAbs);
+
+    // 2. CARD DE OUTROS GASTOS / CARTÃO
+    let prestacaoAtualPendente = 0;
+
+    outrosGastos.forEach(g => {
+        const valTotal = parseFloat(g.valor) || 0;
+        if (g.forma_pagamento === 'Cartão de Crédito') {
+            const pago = g.pago === true;
+            if (!pago) {
+                prestacaoAtualPendente += valTotal;
+            }
+        }
+    });
+
+    // Renderização das parcelas de cartão dentro do card
+    let listPrestashoesHTML = '';
+    const comprasCartaoMes = outrosGastos.filter(g => g.forma_pagamento === 'Cartão de Crédito');
+    
+    if (comprasCartaoMes.length > 0) {
+        let linesHTML = '';
+        comprasCartaoMes.forEach(g => {
+            const valTotal = parseFloat(g.valor) || 0;
+            const isPaga = g.pago === true;
+            
+            linesHTML += `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="check-parcela-card-fast" data-gasto-id="${g.id}" ${isPaga ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px;">
+                    <span style="text-decoration: ${isPaga ? 'line-through' : 'none'}; color: ${isPaga ? '#888' : '#ccc'}; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
+                        ${g.descricao}: <b>${formatCurrency(valTotal)}</b>
+                    </span>
+                </div>
+            `;
+        });
+        
+        if (linesHTML) {
+            listPrestashoesHTML = `
+                <div style="margin-top: 12px; border-top: 1px solid #333; padding-top: 10px; max-height: 110px; overflow-y: auto;">
+                    <p style="font-size: 0.75rem; color: #888; font-weight: bold; margin-bottom: 6px;">📅 Parcelas do Mês:</p>
+                    ${linesHTML}
+                </div>
+            `;
+        }
+    }
+
+    const cardOutros = document.createElement('div');
+    cardOutros.className = 'financas-card outros-gastos-card-new';
+    cardOutros.innerHTML = `
+        <div>
+            <h3><span>💳 Outros Gastos (Geral/Cartão)</span> <span style="font-size: 1.5rem;">💳</span></h3>
+            <div class="financas-card-content">
+                <div class="financas-metric-row">
+                    <span>Gasto no período:</span>
+                    <b style="color: var(--accent-color);">${formatCurrency(totalOutros)}</b>
+                </div>
+                <div class="financas-metric-row">
+                    <span>Prestação Atual (Mês):</span>
+                    <b style="color: #ff3860;">${formatCurrency(prestacaoAtualPendente)}</b>
+                </div>
+                <div class="financas-metric-row">
+                    <span>Faturas Pendentes:</span>
+                    <b style="color: #ffc107;">${formatCurrency(totalFaturasCartaoPendentes)}</b>
+                </div>
+                
+                ${listPrestashoesHTML}
+                
+                <div class="financas-card-actions" onclick="event.stopPropagation()">
+                    <button class="financas-btn-small trocar" id="btn-card-gasto" style="flex: 1; background: var(--accent-color); color: white; border-color: var(--accent-color);">💳 Gasto</button>
+                </div>
+                
+                <p style="font-size: 0.75rem; color: #888; margin-top: 12px; text-align: center;">
+                    💡 Clique no card para ver o histórico.
+                </p>
+            </div>
+        </div>
+    `;
+    cardOutros.onclick = () => abrirModalHistoricoOutrosGastos(outrosGastos);
+    
+    // Bind do clique no botão "💳 Gasto" do card
+    const btnCardGasto = cardOutros.querySelector('#btn-card-gasto');
+    if (btnCardGasto) {
+        btnCardGasto.onclick = () => openGastoGeralModal();
+    }
+    
+    // Bind dos checkboxes rápidos de parcelas no card
+    cardOutros.querySelectorAll('.check-parcela-card-fast').forEach(check => {
+        check.onchange = async (e) => {
+            const gastoId = check.getAttribute('data-gasto-id');
+            const checked = check.checked;
+            
+            showLoader(true, 'Atualizando parcela...');
+            try {
+                const docRef = doc(db, "gastos_gerais", gastoId);
+                await updateDoc(docRef, { pago: checked });
+                await loadFinancas(); // Recarrega tudo
+            } catch (err) {
+                console.error("Erro ao atualizar parcela rápido:", err);
+                check.checked = !checked;
+            } finally {
+                showLoader(false);
+            }
+        };
+    });
+    
+    grid.appendChild(cardOutros);
+
+    // 3. CARDS DE REVISÕES / MANUTENÇÕES
+    manuts.forEach(m => {
+        const cardManut = document.createElement('div');
+        cardManut.className = 'financas-card manutencao-card-new';
+        
+        const isLivre = (parseFloat(m.km_total) || 0) === 0;
+        const alertaAtivo = m.alerta_ativo !== false;
+        
+        let contentHTML = '';
+        if (isLivre) {
+            const percentualFin = Math.min(100, Math.max(0, (m.saldo / m.valor) * 100));
+            const prazoBr = m.data_limite ? m.data_limite.split('-').reverse().join('/') : 'Sem prazo';
+            contentHTML = `
+                <div>
+                    <h3>
+                        <span>🎯 ${m.nome}</span>
+                        <div class="switch-container" title="Ativar Alertas no Dashboard" onclick="event.stopPropagation()">
+                            <span>🔔</span>
+                            <label class="switch">
+                                <input type="checkbox" class="alerta-switch" data-id="${m.id}" ${alertaAtivo ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </h3>
+                    
+                    <div class="financas-card-content">
+                        <div class="financas-progress-container">
+                            <div class="financas-progress-label">
+                                <span>Meta Alcançada (${percentualFin.toFixed(0)}%)</span>
+                                <span>${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</span>
+                            </div>
+                            <div class="financas-progress-bar-bg">
+                                <div class="financas-progress-bar ok" style="width: ${percentualFin}%"></div>
+                            </div>
+                            <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: var(--success-color);">
+                                ${percentualFin >= 100 ? '✅ Meta Atingida!' : `Falta juntar ${formatCurrency(m.valor - m.saldo)}`}
+                            </div>
+                        </div>
+
+                        <div class="financas-metric-row" style="margin-top: 10px;">
+                            <span>Prazo Final:</span>
+                            <b style="color: #ffc107;">${prazoBr}</b>
+                        </div>
+                        <div class="financas-metric-row">
+                            <span>Dinheiro Guardado:</span>
+                            <b style="color: #00d1b2;">${formatCurrency(m.saldo)}</b>
+                        </div>
+                        
+                        <div class="financas-card-actions" onclick="event.stopPropagation()">
+                            <button class="financas-btn-small poupar" data-id="${m.id}">+ Poupar</button>
+                            <button class="financas-btn-small trocar" data-id="${m.id}">💰 Gastar / Resgatar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            const kmAndado = currentKm - m.km_inicial;
+            const kmIntervalo = m.km_total;
+            const percentual = Math.min(100, Math.max(0, (kmAndado / kmIntervalo) * 100));
+            const kmRestante = kmIntervalo - kmAndado;
+
+            let statusText = '';
+            let progressClass = '';
+            if (kmRestante <= 0) {
+                statusText = `🚨 Vencido há ${Math.abs(kmRestante).toFixed(0)} km!`;
+                progressClass = 'danger';
+            } else if (kmRestante <= 500) {
+                statusText = `⚠️ Vence em ${kmRestante.toFixed(0)} km!`;
+                progressClass = 'warning';
+            } else {
+                statusText = `${kmRestante.toFixed(0)} km restantes`;
+                progressClass = 'ok';
+            }
+
+            contentHTML = `
+                <div>
+                    <h3>
+                        <span>🔧 ${m.nome}</span>
+                        <div class="switch-container" title="Ativar Alertas no Dashboard" onclick="event.stopPropagation()">
+                            <span>🔔</span>
+                            <label class="switch">
+                                <input type="checkbox" class="alerta-switch" data-id="${m.id}" ${alertaAtivo ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </h3>
+                    
+                    <div class="financas-card-content">
+                        <div class="financas-progress-container">
+                            <div class="financas-progress-label">
+                                <span>Progresso (${percentual.toFixed(0)}%)</span>
+                                <span>${kmAndado.toFixed(0)} / ${kmIntervalo.toFixed(0)} km</span>
+                            </div>
+                            <div class="financas-progress-bar-bg">
+                                <div class="financas-progress-bar ${progressClass}" style="width: ${percentual}%"></div>
+                            </div>
+                            <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: ${progressClass === 'danger' ? 'var(--danger-color)' : progressClass === 'warning' ? '#ffc107' : 'var(--success-color)'}">
+                                ${statusText}
+                            </div>
+                        </div>
+
+                        <div class="financas-metric-row" style="margin-top: 10px;">
+                            <span>Dinheiro Arrecadado:</span>
+                            <b style="color: #00d1b2;">${formatCurrency(m.saldo)} / ${formatCurrency(m.valor)}</b>
+                        </div>
+                        
+                        <div class="financas-card-actions" onclick="event.stopPropagation()">
+                            <button class="financas-btn-small poupar" data-id="${m.id}">+ Poupar</button>
+                            <button class="financas-btn-small trocar" data-id="${m.id}">🔧 Trocar / Gastar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        cardManut.innerHTML = contentHTML;
+
+        cardManut.querySelector('.alerta-switch').addEventListener('change', (e) => {
+            toggleAlertaManutencao(m.id, e.target.checked);
+        });
+
+        cardManut.querySelector('.financas-btn-small.poupar').addEventListener('click', () => {
+            abrirModalTransacaoCaixinha(m, 'entrada');
+        });
+
+        cardManut.querySelector('.financas-btn-small.trocar').addEventListener('click', () => {
+            abrirModalTransacaoCaixinha(m, 'saida');
+        });
+
+        cardManut.onclick = () => abrirModalHistoricoManutencao(m);
+        grid.appendChild(cardManut);
+    });
+}
+
+async function toggleAlertaManutencao(id, checked) {
+    try {
+        await updateDoc(doc(db, "manutencoes", id), {
+            alerta_ativo: checked
+        });
+        checkMaintenanceAlerts();
+    } catch (e) {
+        console.error("Erro ao alternar alerta:", e);
+    }
+}
+
+function abrirModalTransacaoCaixinha(manut, tipo) {
+    currentManutencaoId = manut.id;
+    
+    const modal = document.getElementById('modal-transacao-caixinha');
+    const form = document.getElementById('form-transacao-caixinha');
+    form.reset();
+    
+    document.getElementById('trans-caixinha-tipo').value = tipo;
+    document.getElementById('trans-caixinha-manut-id').value = manut.id;
+    document.getElementById('trans-caixinha-data').value = getLocalDate();
+    
+    const titulo = document.getElementById('trans-caixinha-titulo');
+    const valorInput = document.getElementById('trans-caixinha-valor');
+    const descInput = document.getElementById('trans-caixinha-desc');
+    
+    const applyMask = (input, decimals) => {
+        const clone = input.cloneNode(true);
+        input.parentNode.replaceChild(clone, input);
+        
+        clone.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            const divisor = Math.pow(10, decimals);
+            value = (parseInt(value) / divisor).toFixed(decimals);
+            e.target.value = value.replace('.', ',');
+        });
+    };
+    
+    applyMask(valorInput, 2);
+    
+    if (tipo === 'entrada') {
+        titulo.textContent = `💰 Depositar em: ${manut.nome}`;
+        descInput.placeholder = "Ex: Poupança semanal para manutenção";
+        const restante = Math.max(0, manut.valor - manut.saldo);
+        if (restante > 0) {
+            document.getElementById('trans-caixinha-valor').value = restante.toFixed(2).replace('.', ',');
+        }
+    } else {
+        titulo.textContent = `🔧 Registrar Gasto/Troca em: ${manut.nome}`;
+        descInput.placeholder = "Ex: Compra/Troca efetuada";
+        document.getElementById('trans-caixinha-valor').value = manut.valor.toFixed(2).replace('.', ',');
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function fecharModalTransacaoCaixinha() {
+    document.getElementById('modal-transacao-caixinha').style.display = 'none';
+}
+
+async function salvarTransacaoCaixinha(e) {
+    e.preventDefault();
+    showLoader(true, 'Salvando transação...');
+    
+    const manutId = document.getElementById('trans-caixinha-manut-id').value;
+    const tipo = document.getElementById('trans-caixinha-tipo').value;
+    const data = document.getElementById('trans-caixinha-data').value;
+    const valorVal = parseFloat(document.getElementById('trans-caixinha-valor').value.replace(',', '.')) || 0;
+    const desc = document.getElementById('trans-caixinha-desc').value;
+    
+    try {
+        const docRef = doc(db, "manutencoes", manutId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const manutData = docSnap.data();
+            const historico = manutData.historico || [];
+            const isLivre = (parseFloat(manutData.km_total) || 0) === 0;
+            
+            const tId = 't_' + new Date().getTime();
+            historico.push({
+                id: tId,
+                data: data,
+                tipo: tipo,
+                valor: valorVal,
+                descricao: desc || (tipo === 'entrada' ? 'Poupança/Depósito' : (isLivre ? 'Resgate/Gasto' : 'Troca efetuada'))
+            });
+            
+            const updateObj = { historico: historico };
+            
+            let reiniciarKm = false;
+            let metaArquivada = false;
+            
+            if (tipo === 'saida') {
+                if (isLivre) {
+                    if (confirm(`Deseja arquivar esta caixinha?\n\nIsso irá:\n1. Registrar permanentemente o pagamento de ${formatCurrency(valorVal)} no Histórico Geral de Despesas.\n2. Limpar o histórico interno desta caixinha para que você comece a poupar para o próximo ano do zero.`)) {
+                        const dataGasto = {
+                            descricao: `${manutData.nome} (Arquivado/Pago)`,
+                            valor: valorVal,
+                            data: data,
+                            tipo: 'Outros',
+                            uid: currentUser.uid,
+                            forma_pagamento: 'Pix',
+                            createdAt: new Date()
+                        };
+                        await addDoc(collection(db, "gastos_gerais"), dataGasto);
+                        updateObj.historico = []; // Zera para o próximo ciclo
+                        metaArquivada = true;
+                    }
+                } else {
+                    const qLast = query(collection(db, "registros"), where("uid", "==", currentUser.uid));
+                    const lastSnap = await getDocs(qLast);
+                    let currentKm = parseFloat(manutData.km_inicial) || 0;
+                    if (!lastSnap.empty) {
+                        lastSnap.forEach(d => {
+                            const km = parseFloat(d.data().km_final) || 0;
+                            if (km > currentKm) currentKm = km;
+                        });
+                    }
+                    
+                    if (confirm(`Deseja atualizar o KM Inicial de ${manutData.km_inicial} para ${currentKm} (KM atual do carro)?\nIsso irá zerar a contagem de quilômetros para a próxima revisão.`)) {
+                        updateObj.km_inicial = currentKm;
+                        reiniciarKm = true;
+                    }
+                }
+            }
+            
+            await updateDoc(docRef, updateObj);
+            fecharModalTransacaoCaixinha();
+            document.getElementById('modal-historico-manutencao').style.display = 'none';
+            await loadFinancas();
+            checkMaintenanceAlerts();
+            
+            if (reiniciarKm) {
+                alert('Revisão realizada e KM inicial reiniciado com sucesso!');
+            }
+            if (metaArquivada) {
+                alert('Meta arquivada com sucesso! O pagamento foi registrado no seu Histórico Geral de Despesas.');
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao salvar transação de caixinha:", e);
+        alert("Erro ao salvar transação.");
+    } finally {
+        showLoader(false);
+    }
+}
+
+function abrirModalHistoricoAbastecimento(abastecimentos) {
+    const modal = document.getElementById('modal-historico-abastecimento');
+    const tbody = document.getElementById('tbody-hist-abastecimento');
+    tbody.innerHTML = '';
+    
+    abastecimentos.forEach(item => {
+        const litros = item.valor_total / item.preco_litro;
+        const dist = (item.km_atual && item.km_anterior) ? (item.km_atual - item.km_anterior) : 0;
+        const kml = (litros > 0 && dist > 0) ? (dist / litros) : 0;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.data.split('-').reverse().join('/')}</td>
+            <td>${item.km_anterior}</td>
+            <td>${item.km_atual}</td>
+            <td style="color: var(--primary-color); font-weight: bold;">${formatCurrency(item.valor_total)}</td>
+            <td>${kml > 0 ? kml.toFixed(1) + ' KM/L' : '--'}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-edit-abs btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">✏️</button>
+                    <button class="btn-del-abs btn-small btn-delete">🗑️</button>
+                </div>
+            </td>
+        `;
+        
+        tr.querySelector('.btn-edit-abs').onclick = () => {
+            modal.style.display = 'none';
+            openAbastecimentoModal(item);
+        };
+        
+        tr.querySelector('.btn-del-abs').onclick = async () => {
+            if (confirm('Deseja excluir este abastecimento?')) {
+                showLoader(true, 'Excluindo...');
+                try {
+                    await deleteDoc(doc(db, "abastecimentos", item.id));
+                    modal.style.display = 'none';
+                    await loadFinancas();
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    showLoader(false);
+                }
+            }
+        };
+        tbody.appendChild(tr);
+    });
+    modal.style.display = 'flex';
+}
+
+function abrirModalHistoricoOutrosGastos(outrosGastos) {
+    const modal = document.getElementById('modal-historico-outros-gastos');
+    const tbody = document.getElementById('tbody-hist-outros');
+    tbody.innerHTML = '';
+    
+    outrosGastos.forEach(item => {
+        const tr = document.createElement('tr');
+        
+        let parcelamentoHTML = '';
+        if (item.forma_pagamento === 'Cartão de Crédito') {
+            const isPaga = item.pago === true;
+            parcelamentoHTML = `
+                <div style="font-size: 0.8rem;">
+                    <div class="instalment-list" style="margin-top: 5px;">
+                        <div class="instalment-badge ${isPaga ? 'paga' : 'pendente'}" data-id="${item.id}">
+                            <span>${item.parcelado ? `Parc. ${item.parcela_numero}/${item.num_parcelas}` : 'Única'}</span>
+                            <span class="instalment-status-icon">${isPaga ? '✓' : '✗'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            parcelamentoHTML = `<span style="color: #666; font-size: 0.8rem;">À vista</span>`;
+        }
+
+        tr.innerHTML = `
+            <td>${item.data.split('-').reverse().join('/')}</td>
+            <td><span class="turno-badge" style="background: rgba(50, 115, 220, 0.15); color: var(--accent-color); padding: 3px 6px; font-size: 0.75rem;">${item.tipo}</span></td>
+            <td>${item.descricao}</td>
+            <td>${item.forma_pagamento || 'Outro'}</td>
+            <td style="font-weight: bold; color: var(--accent-color);">${formatCurrency(item.valor)}</td>
+            <td>${parcelamentoHTML}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-edit-gasto btn-small" style="background: rgba(50, 115, 220, 0.2); color: var(--accent-color);">✏️</button>
+                    <button class="btn-del-gasto btn-small btn-delete">🗑️</button>
+                </div>
+            </td>
+        `;
+
+        tr.querySelectorAll('.instalment-badge').forEach(badge => {
+            badge.onclick = async () => {
+                const gastoId = badge.getAttribute('data-id');
+                const isPaga = item.pago === true;
+                
+                showLoader(true, 'Atualizando status...');
+                try {
+                    const docRef = doc(db, "gastos_gerais", gastoId);
+                    await updateDoc(docRef, { pago: !isPaga });
+                    
+                    const start = document.getElementById('startDate').value;
+                    const end = document.getElementById('endDate').value;
+                    
+                    const qGeral = query(
+                        collection(db, "gastos_gerais"),
+                        where("uid", "==", currentUser.uid),
+                        where("data", ">=", start),
+                        where("data", "<=", end)
+                    );
+                    const snaps = await getDocs(qGeral);
+                    const updatedGastos = [];
+                    snaps.forEach(d => updatedGastos.push({ id: d.id, ...d.data() }));
+                    
+                    abrirModalHistoricoOutrosGastos(updatedGastos);
+                    await loadFinancas();
+                } catch (e) {
+                    console.error("Erro ao atualizar status do gasto:", e);
+                } finally {
+                    showLoader(false);
+                }
+            };
+        });
+
+        tr.querySelector('.btn-edit-gasto').onclick = () => {
+            modal.style.display = 'none';
+            openGastoGeralModal(item);
+        };
+
+        tr.querySelector('.btn-del-gasto').onclick = async () => {
+            if (confirm('Deseja excluir este gasto?')) {
+                showLoader(true, 'Excluindo...');
+                try {
+                    await deleteDoc(doc(db, "gastos_gerais", item.id));
+                    modal.style.display = 'none';
+                    await loadFinancas();
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    showLoader(false);
+                }
+            }
+        };
+        tbody.appendChild(tr);
+    });
+    modal.style.display = 'flex';
+}
+
+function abrirModalHistoricoManutencao(manut) {
+    currentManutencaoId = manut.id;
+    
+    const modal = document.getElementById('modal-historico-manutencao');
+    document.getElementById('hist-manut-titulo').textContent = `🔧 Caixinha: ${manut.nome}`;
+    document.getElementById('hist-manut-saldo').textContent = formatCurrency(manut.saldo);
+    document.getElementById('hist-manut-meta').textContent = `Custo Estimado: ${formatCurrency(manut.valor)}`;
+    
+    const tbody = document.getElementById('tbody-hist-manutencao');
+    tbody.innerHTML = '';
+    
+    document.getElementById('btnPouparHist').onclick = () => {
+        abrirModalTransacaoCaixinha(manut, 'entrada');
+    };
+    
+    document.getElementById('btnTrocarHist').onclick = () => {
+        abrirModalTransacaoCaixinha(manut, 'saida');
+    };
+    
+    const historico = manut.historico || [];
+    const histOrdenado = [...historico].sort((a,b) => b.data.localeCompare(a.data));
+    
+    if (histOrdenado.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888;">Nenhuma transação registrada nesta caixinha.</td></tr>`;
+    } else {
+        histOrdenado.forEach(t => {
+            const tr = document.createElement('tr');
+            const isEntrada = t.tipo === 'entrada';
+            
+            tr.innerHTML = `
+                <td>${t.data.split('-').reverse().join('/')}</td>
+                <td>
+                    <span class="turno-badge" style="background: ${isEntrada ? 'rgba(35, 209, 96, 0.15)' : 'rgba(255, 56, 96, 0.15)'}; color: ${isEntrada ? 'var(--success-color)' : 'var(--danger-color)'}; padding: 3px 6px; font-size: 0.75rem;">
+                        ${isEntrada ? 'Depósito (+)' : 'Retirada/Gasto (-)'}
+                    </span>
+                </td>
+                <td style="font-weight: bold; color: ${isEntrada ? 'var(--success-color)' : 'var(--danger-color)'};">
+                    ${isEntrada ? '+' : '-'}${formatCurrency(t.valor)}
+                </td>
+                <td>${t.descricao}</td>
+                <td>
+                    <button class="btn-del-trans btn-small btn-delete" data-tid="${t.id}">🗑️</button>
+                </td>
+            `;
+            
+            tr.querySelector('.btn-del-trans').onclick = async () => {
+                if (confirm('Deseja excluir esta transação da caixinha?')) {
+                    showLoader(true, 'Excluindo transação...');
+                    try {
+                        const docRef = doc(db, "manutencoes", manut.id);
+                        const docSnap = await getDoc(docRef);
+                        
+                        if (docSnap.exists()) {
+                            const currentHist = docSnap.data().historico || [];
+                            const updatedHist = currentHist.filter(item => item.id !== t.id);
+                            
+                            await updateDoc(docRef, { historico: updatedHist });
+                            modal.style.display = 'none';
+                            await loadFinancas();
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        showLoader(false);
+                    }
+                }
+            };
+            tbody.appendChild(tr);
+        });
+    }
+    modal.style.display = 'flex';
+}
+

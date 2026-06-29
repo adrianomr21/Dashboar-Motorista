@@ -1137,3 +1137,249 @@ th {
     margin-top: 10px;
 }
 
+/* --- ESTILOS DE FINANÇAS E CAIXINHAS (CARDS) --- */
+.financas-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #333;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.financas-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 20px rgba(0, 209, 178, 0.15);
+}
+
+.financas-card.abastecimento-card-new {
+    border-left: 5px solid var(--primary-color);
+}
+.financas-card.abastecimento-card-new:hover {
+    border-color: var(--primary-color);
+}
+
+.financas-card.outros-gastos-card-new {
+    border-left: 5px solid var(--accent-color);
+}
+.financas-card.outros-gastos-card-new:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 8px 20px rgba(50, 115, 220, 0.15);
+}
+
+.financas-card.manutencao-card-new {
+    border-left: 5px solid #00d1b2;
+}
+
+.financas-card h3 {
+    margin-top: 0;
+    font-size: 1.15rem;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.financas-card-content {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.financas-metric-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.financas-metric-row b {
+    color: #fff;
+}
+
+/* Barra de progresso de KM */
+.financas-progress-container {
+    margin-top: 15px;
+    margin-bottom: 12px;
+}
+
+.financas-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+.financas-progress-bar-bg {
+    background: #2b2b2b;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.financas-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #23d160 0%, #00d1b2 100%);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.6s ease;
+}
+
+.financas-progress-bar.warning {
+    background: linear-gradient(90deg, #ffc107 0%, #ff8800 100%);
+}
+
+.financas-progress-bar.danger {
+    background: linear-gradient(90deg, #ff3860 0%, #ff1a1a 100%);
+}
+
+/* Botoes nos cards de Manutencao */
+.financas-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.financas-btn-small {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.financas-btn-small.poupar {
+    background: rgba(35, 209, 96, 0.15);
+    color: #23d160;
+    border: 1px solid rgba(35, 209, 96, 0.3);
+}
+
+.financas-btn-small.poupar:hover {
+    background: #23d160;
+    color: #000;
+}
+
+.financas-btn-small.trocar {
+    background: rgba(0, 209, 178, 0.15);
+    color: #00d1b2;
+    border: 1px solid rgba(0, 209, 178, 0.3);
+}
+
+.financas-btn-small.trocar:hover {
+    background: #00d1b2;
+    color: #000;
+}
+
+/* Switch de Alerta no Card */
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #444;
+    transition: .3s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(16px);
+}
+
+/* Tabela de parcelas de cartão */
+.instalment-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+    background: rgba(255,255,255,0.02);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.instalment-badge {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #252525;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    border: 1px solid #3e3e3e;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.instalment-badge:hover {
+    border-color: var(--primary-color);
+    background: #2a2a2a;
+}
+
+.instalment-badge.paga {
+    border-color: var(--success-color);
+    background: rgba(35, 209, 96, 0.1);
+    color: #23d160;
+}
+
+.instalment-badge.pendente {
+    border-color: var(--danger-color);
+    background: rgba(255, 56, 96, 0.1);
+    color: #ff3860;
+}
+
+.instalment-status-icon {
+    font-size: 0.9rem;
+}
+
